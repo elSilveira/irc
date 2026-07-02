@@ -9,7 +9,7 @@ services:
     ports:
       - "6697:6697/tcp"
     volumes:
-      - ./data/ergo:/ircd
+      - ./data/ergo:/ircd-data
       - ./config/ergo/ircd.yaml:/ircd/ircd.yaml:ro
       - ./config/ergo/ircd.motd:/ircd/ircd.motd:ro
       - ./certs/letsencrypt:/etc/letsencrypt:ro

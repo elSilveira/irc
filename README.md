@@ -17,7 +17,7 @@ Normal client access is TLS-only. The plaintext IRC port `6667` is not published
 - Backup and restore scripts
 - Public-server defaults for TLS, IP cloaking, account services, channel registration, and connection throttling
 
-Ergo's Docker documentation says the image stores its config at `/ircd/ircd.yaml` and persistent server data under `/ircd`. This deployment mounts `./data/ergo` there and overlays the repo-managed config file.
+Ergo's Docker documentation says the image stores its config at `/ircd/ircd.yaml`. This deployment overlays the repo-managed config file there and stores persistent database state under `./data/ergo`, mounted at `/ircd-data`.
 
 ## DNS
 
@@ -83,6 +83,16 @@ docker compose kill -s HUP ergo
 ```
 
 For unattended production renewal, schedule those two commands with Task Scheduler, cron, or your host's preferred scheduler.
+
+## Local Test Certificate
+
+For local testing before DNS and Let's Encrypt are ready, create a short-lived self-signed certificate:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\dev-cert.ps1
+```
+
+This certificate is for local development only. IRC clients may show a certificate warning; accept it for local testing, then replace it with a real Let's Encrypt certificate before public launch.
 
 ## Operator Password
 
