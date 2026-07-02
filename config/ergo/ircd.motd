@@ -1,0 +1,5 @@
+Welcome to EduardoIRC.
+
+Connect securely with TLS at irc.eduardosilveira.dev:6697.
+Register your account with /msg NickServ REGISTER <password>.
+Register channels with /msg ChanServ REGISTER #channel.
