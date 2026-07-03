@@ -78,6 +78,29 @@ test('returns codex login url for login command', async () => {
   ]);
 });
 
+test('creates a task and joins its split channel', async () => {
+  const socket = fakeSocket();
+
+  await handleLine(socket, {
+    nick: 'codex-agent',
+    tasks: {
+      createTask() {
+        return {
+          id: 'TASK-0001',
+          title: 'Build agent',
+          status: 'open',
+          channel: '#task-0001',
+        };
+      },
+    },
+  }, ':eduardo PRIVMSG #control :@orc new "Build agent"');
+
+  assert.deepEqual(socket.writes, [
+    'JOIN #task-0001\r\n',
+    'PRIVMSG #control :Created TASK-0001 in #task-0001.\r\n',
+  ]);
+});
+
 function fakeConversations(seed = {}) {
   const saved = [];
   return {

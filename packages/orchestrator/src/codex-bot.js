@@ -3,6 +3,7 @@ const { dirname, join } = require('node:path');
 const { mkdirSync } = require('node:fs');
 const { createCodexAppClient } = require('./codex-app-client');
 const { createConversationRepository } = require('./conversation-repository');
+const { parseCommand } = require('./command-parser');
 const {
   formatJoin,
   formatNick,
@@ -11,6 +12,7 @@ const {
   parseLine,
 } = require('./irc-lines');
 const { routeCodexMessage } = require('./message-router');
+const { createTaskRepository } = require('./task-repository');
 
 const config = {
   host: process.env.IRC_HOST || '127.0.0.1',
@@ -69,6 +71,7 @@ async function handleLine(socket, options, line) {
 
 async function handlePrivmsg(socket, options, prefix, target, text) {
   const sender = nickFromPrefix(prefix);
+  if (handleOrcCommand(socket, options, target, text)) return;
   const routed = routeCodexMessage({
     botNick: options.nick || config.nick,
     sender,
@@ -92,13 +95,11 @@ async function handlePrivmsg(socket, options, prefix, target, text) {
 }
 
 function createDefaultServices(options) {
-  if (options.conversations && options.codex) {
-    return {};
-  }
   ensureDatabaseDirectory(options.database);
   return {
     conversations: options.conversations || createConversationRepository(options.database),
     codex: options.codex || createCodexAppClient({ cwd: process.cwd() }),
+    tasks: options.tasks || createTaskRepository(options.database),
   };
 }
 
@@ -109,6 +110,15 @@ function ensureDatabaseDirectory(database) {
 
 function nickFromPrefix(prefix) {
   return (prefix || '').split('!')[0];
+}
+
+function handleOrcCommand(socket, options, target, text) {
+  const parsed = parseCommand(text);
+  if (!parsed.ok || parsed.command !== 'new') return false;
+  const task = options.tasks.createTask(parsed.args.join(' '));
+  socket.write(formatJoin(task.channel));
+  socket.write(formatPrivmsg(target, `Created ${task.id} in ${task.channel}.`));
+  return true;
 }
 
 function replyTarget(target, sender, botNick = config.nick) {
