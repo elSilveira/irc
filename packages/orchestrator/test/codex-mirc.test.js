@@ -20,4 +20,8 @@ test('mirc docs explain codex-agent commands', () => {
 
   assert.match(readme, /codex-agent/);
   assert.match(readme, /\/codex-status/);
+  assert.match(readme, /\/codex-login/);
+  assert.match(readme, /direct messages/i);
+  assert.match(readme, /codex app-server/i);
+  assert.match(readme, /@orc new/);
 });

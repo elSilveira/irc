@@ -60,7 +60,8 @@ For a new nick, switch first and then register:
 
 ## Codex Agent
 
-Start the local deterministic `codex-agent` bridge:
+Start the local `codex-agent` bridge. It talks to local `codex app-server`, so
+Codex owns login, tokens, model access, and streamed responses:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\start-codex-agent.ps1
@@ -69,13 +70,22 @@ powershell -ExecutionPolicy Bypass -File .\scripts\start-codex-agent.ps1
 Then use these mIRC shortcuts in `#control`:
 
 ```text
+/codex-login
 /codex-status
 /codex-help
 /codex-echo hello from mIRC
 ```
 
-The v0 agent is chat-only and cannot run shell, edit files, use Git, browse,
-deploy, or access secrets.
+Run `/codex-login` first if Codex is not signed in. The bot replies with the
+browser login URL returned by `codex app-server`.
+
+Use `@codex <message>` in any channel. Direct messages to `codex-agent` also
+work without the `@codex` prefix. Context is persisted separately per channel
+and direct message, for example `channel:#control`, `channel:#task-0001`, and
+`dm:esilveira`.
+
+The agent is chat-only and cannot run shell, edit files, use Git, browse,
+deploy, or access secrets from IRC.
 
 ## Control Plane Shortcuts
 
@@ -92,6 +102,9 @@ All control-plane aliases send `@orc` commands to `#control`.
 /orc-summarize TASK-0001
 /orc-logs TASK-0001
 ```
+
+`/orc-new` sends `@orc new`, creates a task such as `TASK-0001`, and makes the
+bot join the split channel `#task-0001` for that task context.
 
 `/orc-agent-create` stores agent identity and context through the orchestrator:
 

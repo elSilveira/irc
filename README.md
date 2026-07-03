@@ -100,6 +100,8 @@ TLS on `6697`.
 Control-plane shortcuts send commands to `#control`:
 
 ```text
+/codex-login
+/codex-status
 /orc-agents
 /orc-status
 /orc-tasks
@@ -111,8 +113,10 @@ Control-plane shortcuts send commands to `#control`:
 /orc-logs TASK-0001
 ```
 
-The current implemented command primitive is `@orc agent create`, which stores
-agent identity and context in SQLite through the orchestrator repository.
+`/codex-login` asks local `codex app-server` for a ChatGPT OAuth URL. After
+login, use `@codex <message>` in any channel. Direct messages to `codex-agent`
+also work without the `@codex` prefix. Each channel and DM has its own persisted
+Codex thread, and `@orc new "Title"` creates a split channel like `#task-0001`.
 
 ## Control Plane Status
 
@@ -120,17 +124,17 @@ Implemented:
 
 - `@orc` command parsing
 - `@orc agent create ...` command handling
+- `@orc new ...` task creation with split IRC channels
 - SQLite-backed agent persistence with durable context
+- SQLite-backed Codex thread persistence by channel or DM
+- local `codex app-server` client with login and read-only turns
+- live IRC `codex-agent` channel and direct-message replies
 - task ID and task-channel formatting helpers
 - structured agent message formatting
 - v0 permission policy that blocks execution capabilities
 
 Not implemented yet:
 
-- live IRC bot connection
-- channel joins/invites
-- task creation persistence
-- agent auto-replies
 - approval workflow
 
 ```powershell
@@ -145,10 +149,12 @@ data/ergo/            Ergo database, accounts, channels, runtime state
 certs/letsencrypt/    TLS certificates
 backups/              Backup archives
 db/schema.sql         Control-plane schema
+data/orchestrator.sqlite  Codex thread and task state
 ```
 
 The `agents` table includes durable `context` so each agent can keep its role
-and operating notes across restarts.
+and operating notes across restarts. `codex_conversations` maps contexts such as
+`channel:#control`, `channel:#task-0001`, and `dm:esilveira` to Codex thread ids.
 
 ## Backup And Restore
 
