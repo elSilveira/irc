@@ -1,6 +1,7 @@
 const net = require('node:net');
 const { dirname, join } = require('node:path');
 const { mkdirSync } = require('node:fs');
+const { handleBotServ } = require('./botserv-service');
 const { createCodexAppClient } = require('./codex-app-client');
 const { createConversationRepository } = require('./conversation-repository');
 const { parseCommand } = require('./command-parser');
@@ -18,6 +19,7 @@ const config = {
   host: process.env.IRC_HOST || '127.0.0.1',
   port: Number(process.env.IRC_PORT || 6667),
   nick: process.env.CODEX_IRC_NICK || 'codex-agent',
+  botServNick: process.env.BOTSERV_IRC_NICK || 'BotServ',
   channel: process.env.CODEX_IRC_CHANNEL || '#control',
   database: process.env.CODEX_IRC_DB || join(process.cwd(), 'data', 'orchestrator.sqlite'),
 };
@@ -71,6 +73,7 @@ async function handleLine(socket, options, line) {
 
 async function handlePrivmsg(socket, options, prefix, target, text) {
   const sender = nickFromPrefix(prefix);
+  if (handleBotServMessage(socket, options, sender, target, text)) return;
   if (handleOrcCommand(socket, options, target, text)) return;
   const routed = routeCodexMessage({
     botNick: options.nick || config.nick,
@@ -118,6 +121,20 @@ function handleOrcCommand(socket, options, target, text) {
   const task = options.tasks.createTask(parsed.args.join(' '));
   socket.write(formatJoin(task.channel));
   socket.write(formatPrivmsg(target, `Created ${task.id} in ${task.channel}.`));
+  return true;
+}
+
+function handleBotServMessage(socket, options, sender, target, text) {
+  if (target.toLowerCase() !== (options.botServNick || 'BotServ').toLowerCase()) {
+    return false;
+  }
+  const result = handleBotServ(text, options);
+  for (const channel of result.joins) {
+    socket.write(formatJoin(channel));
+  }
+  for (const reply of result.replies) {
+    socket.write(formatPrivmsg(sender, reply));
+  }
   return true;
 }
 

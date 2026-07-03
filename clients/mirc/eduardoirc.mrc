@@ -50,6 +50,15 @@ alias codex-echo {
   msg #control @codex echo $1-
 }
 
+alias botserv-help {
+  msg BotServ HELP
+}
+
+alias botserv-new {
+  if (!$1) { echo -a Usage: /botserv-new <task title> | return }
+  msg BotServ NEW $qt($1-)
+}
+
 alias orc-agents {
   msg #control @orc agents
 }
@@ -104,6 +113,9 @@ menu status {
   ..Status:/codex-status
   ..Help:/codex-help
   ..Login:/codex-login
+  .BotServ
+  ..Help:/botserv-help
+  ..New task:/botserv-new test task
   .Control plane
   ..Agents:/orc-agents
   ..Status:/orc-status

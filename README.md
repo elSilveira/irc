@@ -102,6 +102,8 @@ Control-plane shortcuts send commands to `#control`:
 ```text
 /codex-login
 /codex-status
+/botserv-help
+/botserv-new Build local IRC control plane
 /orc-agents
 /orc-status
 /orc-tasks
@@ -117,6 +119,8 @@ Control-plane shortcuts send commands to `#control`:
 login, use `@codex <message>` in any channel. Direct messages to `codex-agent`
 also work without the `@codex` prefix. Each channel and DM has its own persisted
 Codex thread, and `@orc new "Title"` creates a split channel like `#task-0001`.
+BotServ is a services-style facade for task control: `/msg BotServ NEW "Title"`
+creates the same task channel, and `/msg BotServ HELP` lists available commands.
 
 ## Control Plane Status
 
@@ -125,6 +129,7 @@ Implemented:
 - `@orc` command parsing
 - `@orc agent create ...` command handling
 - `@orc new ...` task creation with split IRC channels
+- BotServ `HELP`, `AGENTS`, and `NEW <title>` commands
 - SQLite-backed agent persistence with durable context
 - SQLite-backed Codex thread persistence by channel or DM
 - local `codex app-server` client with login and read-only turns

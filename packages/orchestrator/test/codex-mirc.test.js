@@ -13,6 +13,9 @@ test('mirc helper has codex shortcuts', () => {
   assert.match(script, /alias codex-login /);
   assert.match(script, /@codex status/);
   assert.match(script, /@codex login/);
+  assert.match(script, /alias botserv-help /);
+  assert.match(script, /alias botserv-new /);
+  assert.match(script, /msg BotServ HELP/);
 });
 
 test('mirc docs explain codex-agent commands', () => {
@@ -24,4 +27,6 @@ test('mirc docs explain codex-agent commands', () => {
   assert.match(readme, /direct messages/i);
   assert.match(readme, /codex app-server/i);
   assert.match(readme, /@orc new/);
+  assert.match(readme, /BotServ/);
+  assert.match(readme, /\/botserv-new/);
 });

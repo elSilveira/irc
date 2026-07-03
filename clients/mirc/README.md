@@ -87,6 +87,18 @@ and direct message, for example `channel:#control`, `channel:#task-0001`, and
 The agent is chat-only and cannot run shell, edit files, use Git, browse,
 deploy, or access secrets from IRC.
 
+## BotServ
+
+The helper also has BotServ shortcuts:
+
+```text
+/botserv-help
+/botserv-new Build local IRC control plane
+```
+
+`/botserv-new` sends `/msg BotServ NEW`, creates a task such as `TASK-0001`,
+and makes BotServ join the split channel `#task-0001`.
+
 ## Control Plane Shortcuts
 
 All control-plane aliases send `@orc` commands to `#control`.

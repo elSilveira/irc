@@ -101,6 +101,25 @@ test('creates a task and joins its split channel', async () => {
   ]);
 });
 
+test('handles BotServ direct NEW commands', async () => {
+  const socket = fakeSocket();
+
+  await handleLine(socket, {
+    nick: 'BotServ',
+    botServNick: 'BotServ',
+    tasks: {
+      createTask() {
+        return { id: 'TASK-0001', channel: '#task-0001' };
+      },
+    },
+  }, ':eduardo PRIVMSG BotServ :NEW "Build agent"');
+
+  assert.deepEqual(socket.writes, [
+    'JOIN #task-0001\r\n',
+    'PRIVMSG eduardo :Created TASK-0001 in #task-0001.\r\n',
+  ]);
+});
+
 function fakeConversations(seed = {}) {
   const saved = [];
   return {
