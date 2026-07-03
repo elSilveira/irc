@@ -55,3 +55,10 @@ CREATE TABLE artifacts (
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (task_id) REFERENCES tasks(id)
 );
+
+CREATE TABLE IF NOT EXISTS codex_conversations (
+  context_key TEXT PRIMARY KEY,
+  thread_id TEXT NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
