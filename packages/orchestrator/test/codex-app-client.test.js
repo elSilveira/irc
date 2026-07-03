@@ -25,8 +25,8 @@ function createQueueTransport(handlers = {}) {
       if (method === 'initialize') return { protocolVersion: 1 };
       if (method === 'account/login/start') return { authUrl: 'https://example.com/auth' };
       if (method === 'account/read') return { id: 'acct_1' };
-      if (method === 'thread/start') return { threadId: 'thr_1' };
-      if (method === 'turn/start') return { turnId: 'turn_1' };
+      if (method === 'thread/start') return { thread: { id: 'thr_1' } };
+      if (method === 'turn/start') return { turn: { id: 'turn_1' } };
       throw new Error(`unexpected request: ${method}`);
     },
     async notify(method, params) {
@@ -83,8 +83,8 @@ test('logs in and generates text through the Codex app server', async () => {
 test('serializes generate calls so only one turn consumes notifications at a time', async () => {
   let index = 0;
   const transport = createQueueTransport({
-    'thread/start': () => ({ threadId: `thr_${++index}` }),
-    'turn/start': (params) => ({ turnId: params.threadId.replace('thr', 'turn') }),
+    'thread/start': () => ({ thread: { id: `thr_${++index}` } }),
+    'turn/start': (params) => ({ turn: { id: params.threadId.replace('thr', 'turn') } }),
   });
   const client = createCodexAppClient({ transport, cwd: 'C:\\repo' });
 
@@ -124,6 +124,26 @@ test('requires thread and turn ids returned by app server requests', async () =>
     () => missingTurn.generate({ prompt: 'hello', threadId: 'thr_1' }),
     /turn\/start did not return a turnId/,
   );
+});
+
+test('accepts flat thread and turn ids for transport compatibility', async () => {
+  const transport = createQueueTransport({
+    'thread/start': () => ({ threadId: 'thr_flat' }),
+    'turn/start': () => ({ turnId: 'turn_flat' }),
+  });
+  const client = createCodexAppClient({ transport, cwd: 'C:\\repo' });
+  const generated = client.generate({ prompt: 'hello' });
+
+  transport.push({
+    method: 'item/agentMessage/delta',
+    params: { threadId: 'thr_flat', turnId: 'turn_flat', delta: 'ok' },
+  });
+  transport.push({
+    method: 'turn/completed',
+    params: { threadId: 'thr_flat', turnId: 'turn_flat' },
+  });
+
+  assert.deepEqual(await generated, { threadId: 'thr_flat', text: 'ok' });
 });
 
 test('ignores completion notifications without exact thread and turn ids', async () => {

@@ -102,10 +102,20 @@ function createCodexAppClient(options = {}) {
 }
 
 function requireId(result, key, method) {
-  if (!result || typeof result[key] !== 'string' || !result[key]) {
+  const value = readId(result, key);
+  if (!value) {
     throw new Error(`${method} did not return a ${key}`);
   }
-  return result[key];
+  return value;
+}
+
+function readId(result, key) {
+  if (!result) return '';
+  if (typeof result[key] === 'string' && result[key]) return result[key];
+  const objectKey = key.replace(/Id$/, '');
+  const nested = result[objectKey];
+  if (nested && typeof nested.id === 'string' && nested.id) return nested.id;
+  return '';
 }
 
 function matchesTarget(params, threadId, turnId) {
