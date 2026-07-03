@@ -3,7 +3,7 @@ function handleBotServ(text, services) {
   const normalized = (command || 'HELP').toUpperCase();
 
   if (normalized === 'HELP') {
-    return response(['BotService commands: HELP | NEW <title> | AGENTS']);
+    return response(helpLines());
   }
 
   if (normalized === 'AGENTS') {
@@ -19,7 +19,17 @@ function handleBotServ(text, services) {
     };
   }
 
-  return response(['BotService commands: HELP | NEW <title> | AGENTS']);
+  return response(helpLines());
+}
+
+function helpLines() {
+  return [
+    'BotService commands:',
+    'HELP - show this guide',
+    'NEW <title> - create TASK-0001 and join #task-0001',
+    'AGENTS - list available agents',
+    'Codex chat: use @codex <message> in a channel or /msg codex-agent <message>',
+  ];
 }
 
 function response(replies) {

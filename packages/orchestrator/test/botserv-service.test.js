@@ -7,7 +7,13 @@ test('returns BotService help', () => {
   assert.deepEqual(handleBotServ('HELP', {}), {
     ok: true,
     joins: [],
-    replies: ['BotService commands: HELP | NEW <title> | AGENTS'],
+    replies: [
+      'BotService commands:',
+      'HELP - show this guide',
+      'NEW <title> - create TASK-0001 and join #task-0001',
+      'AGENTS - list available agents',
+      'Codex chat: use @codex <message> in a channel or /msg codex-agent <message>',
+    ],
   });
 });
 
