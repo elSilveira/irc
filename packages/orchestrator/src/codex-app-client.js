@@ -10,6 +10,7 @@ function createCodexAppClient(options = {}) {
   const timeout = options.timeout || 30000;
   const transport = options.transport || createCodexRpcTransport({ cwd });
   let initializePromise;
+  let generateQueue = Promise.resolve();
 
   async function initialize() {
     if (!initializePromise) {
@@ -19,7 +20,10 @@ function createCodexAppClient(options = {}) {
           capabilities: {},
         }, timeout);
         await transport.notify('initialized', {});
-      })();
+      })().catch((error) => {
+        initializePromise = undefined;
+        throw error;
+      });
     }
     return initializePromise;
   }
@@ -35,6 +39,15 @@ function createCodexAppClient(options = {}) {
   }
 
   async function generate({ prompt, threadId }) {
+    const queued = generateQueue.then(
+      () => runGenerate({ prompt, threadId }),
+      () => runGenerate({ prompt, threadId }),
+    );
+    generateQueue = queued.catch(() => {});
+    return queued;
+  }
+
+  async function runGenerate({ prompt, threadId }) {
     await initialize();
     const targetThreadId = threadId || await startThread();
     const turn = await transport.request('turn/start', {
@@ -42,7 +55,7 @@ function createCodexAppClient(options = {}) {
       input: [{ type: 'text', text: prompt }],
       sandboxPolicy: { type: 'readOnly', networkAccess: false },
     }, timeout);
-    const turnId = getId(turn, 'turnId');
+    const turnId = requireId(turn, 'turnId', 'turn/start');
     const text = await collectTurnText(targetThreadId, turnId);
     return { threadId: targetThreadId, text };
   }
@@ -54,7 +67,7 @@ function createCodexAppClient(options = {}) {
       approvalPolicy: 'never',
       developerInstructions: DEVELOPER_INSTRUCTIONS,
     }, timeout);
-    return getId(thread, 'threadId');
+    return requireId(thread, 'threadId', 'thread/start');
   }
 
   async function collectTurnText(threadId, turnId) {
@@ -88,15 +101,15 @@ function createCodexAppClient(options = {}) {
   };
 }
 
-function getId(result, key) {
-  if (!result) return undefined;
-  return result[key] || result.id;
+function requireId(result, key, method) {
+  if (!result || typeof result[key] !== 'string' || !result[key]) {
+    throw new Error(`${method} did not return a ${key}`);
+  }
+  return result[key];
 }
 
 function matchesTarget(params, threadId, turnId) {
-  if (params.threadId && threadId && params.threadId !== threadId) return false;
-  if (params.turnId && turnId && params.turnId !== turnId) return false;
-  return true;
+  return params.threadId === threadId && params.turnId === turnId;
 }
 
 function readErrorMessage(params) {

@@ -14,16 +14,34 @@ function createCodexRpcTransport(options = {}) {
   const pending = new Map();
   const notifications = [];
   const waiters = [];
+  const stderrLimit = options.stderrLimit || 4096;
   let nextId = 1;
   let closed = false;
+  let stderr = '';
 
   const lines = readline.createInterface({ input: child.stdout });
   lines.on('line', (line) => {
     if (!line.trim()) return;
-    handleMessage(JSON.parse(line));
+    try {
+      handleMessage(JSON.parse(line));
+    } catch (error) {
+      rejectAll(withDiagnostics(new Error(
+        `Invalid JSON from codex app-server: ${error.message}`,
+      )));
+    }
   });
-  child.once('error', rejectAll);
-  child.once('exit', () => rejectAll(new Error('codex app-server exited')));
+  lines.once('error', (error) => rejectAll(withDiagnostics(error)));
+  child.stdout.once('error', (error) => rejectAll(withDiagnostics(error)));
+  child.stdin.once('error', (error) => rejectAll(withDiagnostics(error)));
+  child.stderr.on('data', (chunk) => {
+    stderr = `${stderr}${chunk.toString('utf8')}`.slice(-stderrLimit);
+  });
+  child.once('error', (error) => rejectAll(withDiagnostics(error)));
+  child.once('exit', (code, signal) => {
+    rejectAll(withDiagnostics(new Error(
+      `codex app-server exited${formatExit(code, signal)}`,
+    )));
+  });
 
   function handleMessage(message) {
     if (Object.prototype.hasOwnProperty.call(message, 'id')) {
@@ -61,26 +79,50 @@ function createCodexRpcTransport(options = {}) {
     }
   }
 
-  function write(message) {
+  function write(message, onError = () => {}) {
     if (closed) throw new Error('codex app-server transport is closed');
-    child.stdin.write(`${JSON.stringify({ jsonrpc: '2.0', ...message })}\n`);
+    try {
+      child.stdin.write(`${JSON.stringify({ jsonrpc: '2.0', ...message })}\n`, onError);
+    } catch (error) {
+      onError(error);
+    }
   }
 
   function request(method, params, timeout = 30000) {
     const id = nextId;
     nextId += 1;
-    write({ id, method, params });
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         pending.delete(id);
         reject(new Error(`Timed out waiting for ${method}`));
       }, timeout);
       pending.set(id, { resolve, reject, timer });
+      try {
+        write({ id, method, params }, (error) => {
+          if (!error || !pending.has(id)) return;
+          pending.delete(id);
+          clearTimeout(timer);
+          reject(error);
+        });
+      } catch (error) {
+        pending.delete(id);
+        clearTimeout(timer);
+        reject(error);
+      }
     });
   }
 
   async function notify(method, params) {
-    write({ method, params });
+    return new Promise((resolve, reject) => {
+      try {
+        write({ method, params }, (error) => {
+          if (error) reject(error);
+          else resolve();
+        });
+      } catch (error) {
+        reject(error);
+      }
+    });
   }
 
   function nextNotification(timeout = 30000) {
@@ -113,12 +155,23 @@ function createCodexRpcTransport(options = {}) {
     if (typeof child.kill === 'function') child.kill();
   }
 
+  function withDiagnostics(error) {
+    if (!stderr) return error;
+    return new Error(`${error.message}\nstderr:\n${stderr.trimEnd()}`);
+  }
+
   return {
     request,
     notify,
     nextNotification,
     close,
   };
+}
+
+function formatExit(code, signal) {
+  if (code !== null && code !== undefined) return ` with code ${code}`;
+  if (signal) return ` with signal ${signal}`;
+  return '';
 }
 
 module.exports = {
