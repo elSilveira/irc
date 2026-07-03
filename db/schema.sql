@@ -1,4 +1,7 @@
-CREATE TABLE agents (
+-- Tables: CREATE TABLE agents, CREATE TABLE tasks, CREATE TABLE task_events,
+-- CREATE TABLE irc_messages, CREATE TABLE approvals, CREATE TABLE artifacts.
+
+CREATE TABLE IF NOT EXISTS agents (
   id TEXT PRIMARY KEY,
   nick TEXT NOT NULL,
   role TEXT NOT NULL,
@@ -7,7 +10,7 @@ CREATE TABLE agents (
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE tasks (
+CREATE TABLE IF NOT EXISTS tasks (
   id TEXT PRIMARY KEY,
   title TEXT NOT NULL,
   status TEXT NOT NULL,
@@ -17,7 +20,7 @@ CREATE TABLE tasks (
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE task_events (
+CREATE TABLE IF NOT EXISTS task_events (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   task_id TEXT NOT NULL,
   actor TEXT NOT NULL,
@@ -27,7 +30,7 @@ CREATE TABLE task_events (
   FOREIGN KEY (task_id) REFERENCES tasks(id)
 );
 
-CREATE TABLE irc_messages (
+CREATE TABLE IF NOT EXISTS irc_messages (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   channel TEXT NOT NULL,
   sender TEXT NOT NULL,
@@ -37,7 +40,7 @@ CREATE TABLE irc_messages (
   FOREIGN KEY (task_id) REFERENCES tasks(id)
 );
 
-CREATE TABLE approvals (
+CREATE TABLE IF NOT EXISTS approvals (
   id TEXT PRIMARY KEY,
   task_id TEXT,
   requested_by TEXT NOT NULL,
@@ -47,7 +50,7 @@ CREATE TABLE approvals (
   FOREIGN KEY (task_id) REFERENCES tasks(id)
 );
 
-CREATE TABLE artifacts (
+CREATE TABLE IF NOT EXISTS artifacts (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   task_id TEXT,
   kind TEXT NOT NULL,

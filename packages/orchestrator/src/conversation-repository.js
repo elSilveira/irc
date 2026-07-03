@@ -8,6 +8,9 @@ function createConversationRepository(location) {
 
   return {
     saveThread(contextKey, threadId) {
+      assertRequired(contextKey, 'contextKey');
+      assertRequired(threadId, 'threadId');
+
       database.prepare(`
         INSERT INTO codex_conversations (context_key, thread_id)
         VALUES (?, ?)
@@ -31,6 +34,12 @@ function createConversationRepository(location) {
       database.close();
     },
   };
+}
+
+function assertRequired(value, name) {
+  if (typeof value !== 'string' || value.trim() === '') {
+    throw new Error(`${name} is required`);
+  }
 }
 
 function readSchema() {
