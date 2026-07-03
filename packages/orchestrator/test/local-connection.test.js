@@ -18,6 +18,12 @@ test('ergo listens on container plaintext port for local mapping', () => {
   assert.match(config, /":6667":/);
 });
 
+test('ergo exempts docker bridge local clients from connection throttling', () => {
+  const config = readFileSync(join(repoRoot, 'config/ergo/ircd.yaml'), 'utf8');
+
+  assert.match(config, /172\.16\.0\.0\/12/);
+});
+
 test('mirc local shortcut avoids self-signed TLS verification', () => {
   const script = readFileSync(join(repoRoot, 'clients/mirc/eduardoirc.mrc'), 'utf8');
 

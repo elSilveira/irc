@@ -1,0 +1,9 @@
+packages:
+  - "packages/shared"
+  - "packages/db"
+  - "packages/llm"
+  - "packages/tools"
+  - "apps/orchestrator"
+allowBuilds:
+  esbuild: set this to true or false
+  protobufjs: set this to true or false

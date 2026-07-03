@@ -4,6 +4,16 @@
   "type": "commonjs",
   "scripts": {
     "codex:irc": "node packages/orchestrator/src/codex-bot.js",
-    "test": "node --no-warnings --test"
+    "test": "node --no-warnings --test \"packages/orchestrator/test/**/*.test.js\"",
+    "test:ts": "node --no-warnings --import tsx --test \"packages/shared/src/**/*.test.ts\" \"packages/db/src/**/*.test.ts\" \"packages/llm/src/**/*.test.ts\" \"packages/tools/src/**/*.test.ts\" \"apps/orchestrator/src/**/*.test.ts\"",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "orchestrator:dev": "node --no-warnings --import tsx apps/orchestrator/src/index.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "dotenv": "^16.4.5",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
   }
 }
+

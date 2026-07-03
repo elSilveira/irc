@@ -29,6 +29,7 @@ server:
         max-connections-per-window: 16
         exempted:
             - "localhost"
+            - "172.16.0.0/12"
 
 accounts:
     authentication-enabled: true

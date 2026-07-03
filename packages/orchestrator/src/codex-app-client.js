@@ -8,6 +8,7 @@ const DEVELOPER_INSTRUCTIONS = [
 function createCodexAppClient(options = {}) {
   const cwd = options.cwd || process.cwd();
   const timeout = options.timeout || 30000;
+  const developerInstructions = options.developerInstructions || DEVELOPER_INSTRUCTIONS;
   const transport = options.transport || createCodexRpcTransport({ cwd });
   let initializePromise;
   let generateQueue = Promise.resolve();
@@ -65,7 +66,7 @@ function createCodexAppClient(options = {}) {
       cwd,
       sandbox: 'read-only',
       approvalPolicy: 'never',
-      developerInstructions: DEVELOPER_INSTRUCTIONS,
+      developerInstructions,
     }, timeout);
     return requireId(thread, 'threadId', 'thread/start');
   }
