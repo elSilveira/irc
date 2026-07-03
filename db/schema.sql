@@ -1,6 +1,3 @@
--- Tables: CREATE TABLE agents, CREATE TABLE tasks, CREATE TABLE task_events,
--- CREATE TABLE irc_messages, CREATE TABLE approvals, CREATE TABLE artifacts.
-
 CREATE TABLE IF NOT EXISTS agents (
   id TEXT PRIMARY KEY,
   nick TEXT NOT NULL,

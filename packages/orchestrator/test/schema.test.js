@@ -14,9 +14,12 @@ test('defines initial control-plane tables', () => {
     'irc_messages',
     'approvals',
     'artifacts',
+    'codex_conversations',
   ]) {
-    assert.match(schema, new RegExp(`CREATE TABLE ${table}`));
+    assert.match(schema, new RegExp(`CREATE TABLE IF NOT EXISTS ${table}`));
   }
+
+  assert.doesNotMatch(schema, /-- Tables:/);
 });
 
 test('stores durable agent context', () => {
