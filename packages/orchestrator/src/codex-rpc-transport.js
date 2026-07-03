@@ -2,15 +2,13 @@ const { spawn } = require('node:child_process');
 const readline = require('node:readline');
 
 function createCodexRpcTransport(options = {}) {
-  const child = options.child || spawn(
-    options.command || 'codex',
-    options.args || ['app-server'],
-    {
-      cwd: options.cwd,
-      env: options.env || process.env,
-      stdio: ['pipe', 'pipe', 'pipe'],
-    },
-  );
+  const spawnConfig = createCodexSpawnConfig(options);
+  const child = options.child || spawn(spawnConfig.command, spawnConfig.args, {
+    cwd: options.cwd,
+    env: options.env || process.env,
+    shell: spawnConfig.shell,
+    stdio: ['pipe', 'pipe', 'pipe'],
+  });
   const pending = new Map();
   const notifications = [];
   const waiters = [];
@@ -168,6 +166,20 @@ function createCodexRpcTransport(options = {}) {
   };
 }
 
+function createCodexSpawnConfig(options = {}) {
+  const platform = options.platform || process.platform;
+  const command = options.command || defaultCodexCommand(platform);
+  return {
+    command,
+    args: options.args || ['app-server'],
+    shell: options.shell ?? platform === 'win32',
+  };
+}
+
+function defaultCodexCommand(platform) {
+  return platform === 'win32' ? 'codex.cmd' : 'codex';
+}
+
 function formatExit(code, signal) {
   if (code !== null && code !== undefined) return ` with code ${code}`;
   if (signal) return ` with signal ${signal}`;
@@ -176,4 +188,5 @@ function formatExit(code, signal) {
 
 module.exports = {
   createCodexRpcTransport,
+  createCodexSpawnConfig,
 };

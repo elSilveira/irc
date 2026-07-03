@@ -9,23 +9,16 @@ $node = (Get-Command node.exe).Source
 function Start-BotProcess {
     param([Parameter(Mandatory = $true)][string]$Nick)
 
-    $oldNick = $env:CODEX_IRC_NICK
     $logPath = Join-Path $repoRoot "$Nick.log"
     $errPath = Join-Path $repoRoot "$Nick.err.log"
+    $command = @(
+        "set ""CODEX_IRC_NICK=$Nick"""
+        "cd /d ""$repoRoot"""
+        """$node"" ""packages\orchestrator\src\codex-bot.js"""
+    ) -join " && "
 
-    try {
-        $env:CODEX_IRC_NICK = $Nick
-        Start-Process `
-            -FilePath $node `
-            -ArgumentList @("packages\orchestrator\src\codex-bot.js") `
-            -WorkingDirectory $repoRoot `
-            -WindowStyle Hidden `
-            -RedirectStandardOutput $logPath `
-            -RedirectStandardError $errPath
-    }
-    finally {
-        $env:CODEX_IRC_NICK = $oldNick
-    }
+    $redirected = "$command 1>""$logPath"" 2>""$errPath"""
+    & cmd.exe /d /c "start ""irc-$Nick"" /min cmd.exe /d /c ""$redirected"""
 }
 
 Push-Location $repoRoot

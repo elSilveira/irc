@@ -3,7 +3,10 @@ const assert = require('node:assert/strict');
 const { EventEmitter } = require('node:events');
 const { PassThrough } = require('node:stream');
 
-const { createCodexRpcTransport } = require('../src/codex-rpc-transport');
+const {
+  createCodexRpcTransport,
+  createCodexSpawnConfig,
+} = require('../src/codex-rpc-transport');
 
 function createFakeChild() {
   const child = new EventEmitter();
@@ -56,4 +59,12 @@ test('rejects pending requests when stdout contains invalid JSON', async () => {
   child.stdout.write('not-json\n');
 
   await assert.rejects(pending, /Invalid JSON from codex app-server.*near startup/s);
+});
+
+test('uses the cmd shim for codex on Windows', () => {
+  assert.deepEqual(createCodexSpawnConfig({ platform: 'win32' }), {
+    command: 'codex.cmd',
+    args: ['app-server'],
+    shell: true,
+  });
 });
