@@ -1,0 +1,9 @@
+{
+  "name": "eduardo-irc-control-plane",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "codex:irc": "node packages/orchestrator/src/codex-bot.js",
+    "test": "node --no-warnings --test"
+  }
+}

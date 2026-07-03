@@ -1,59 +1,35 @@
 # EduardoIRC
 
-Dockerized Ergo IRCd deployment for a public IRC server at:
-
-```text
-irc.eduardosilveira.dev:6697
-```
-
-Normal client access is TLS-only. The plaintext IRC port `6667` is not published by Docker.
+Dockerized Ergo IRCd deployment plus the first local IRC agent control-plane
+primitives. Public client access is TLS-only at `irc.eduardosilveira.dev:6697`;
+Docker publishes plaintext `6667` on host loopback only for local development.
 
 ## What Is Included
 
-- Ergo IRCd using `ghcr.io/ergochat/ergo:stable`
+- Ergo IRCd with `ghcr.io/ergochat/ergo:stable`
 - Docker Compose service for the IRC server
 - Certbot Compose profile for Let's Encrypt certificates
-- Persistent host directories for IRC state, config, certs, and backups
-- Backup and restore scripts
-- Public-server defaults for TLS, IP cloaking, account services, channel registration, and connection throttling
+- Persistent host directories for server state, config, certs, and backups
+- Backup, restore, start, and local certificate scripts
+- mIRC helper aliases in `clients/mirc/eduardoirc.mrc`
+- Initial Node control-plane modules under `packages/orchestrator`
 
-Ergo's Docker documentation says the image stores its config at `/ircd/ircd.yaml`. This deployment overlays the repo-managed config file there and stores persistent database state under `./data/ergo`, mounted at `/ircd-data`.
-
-## DNS
-
-Create this DNS record at your DNS provider:
+## Layout
 
 ```text
-irc.eduardosilveira.dev.  A  <your-server-ipv4>
+compose.yaml                  Docker services
+config/ergo/                  Ergo config and MOTD
+scripts/                      PowerShell operations scripts
+clients/mirc/                 mIRC connection and @orc shortcuts
+db/schema.sql                 Control-plane database schema
+packages/orchestrator/        Tested command and persistence primitives
 ```
-
-Add an `AAAA` record only if the server has stable IPv6.
-
-Do not try to use `eduardosilveira.dev/server` for IRC traffic. IRC clients connect to a hostname and port, not an HTTP path. You can still create a GitHub Pages page at `eduardosilveira.dev/server` with instructions and a link to:
-
-```text
-ircs://irc.eduardosilveira.dev:6697
-```
-
-## Firewall
-
-Allow:
-
-```text
-6697/tcp
-```
-
-Allow `80/tcp` only while issuing or renewing Let's Encrypt certificates with HTTP-01 challenge. Close it again after issuance if you do not run a website on this host.
 
 ## Setup
-
-Copy the environment template:
 
 ```powershell
 Copy-Item .env.example .env
 ```
-
-Edit `.env` and set:
 
 ```dotenv
 IRC_DOMAIN=irc.eduardosilveira.dev
@@ -61,92 +37,41 @@ ACME_EMAIL=your-real-email@example.com
 TZ=UTC
 ```
 
-## Issue TLS Certificate
+For production, create `irc.eduardosilveira.dev. A <your-server-ipv4>`. Allow
+inbound `6697/tcp`; allow `80/tcp` only during HTTP-01 certificate work.
 
-Make sure DNS points to this server before running Certbot.
+## TLS
 
 ```powershell
 docker compose --profile certbot run --rm --service-ports certbot certonly --standalone -d irc.eduardosilveira.dev -m your-real-email@example.com --agree-tos --no-eff-email
 ```
 
-Certificates are preserved under:
-
-```text
-certs/letsencrypt/
-```
-
-Renew manually:
-
-```powershell
-docker compose --profile certbot run --rm --service-ports certbot renew --standalone
-docker compose kill -s HUP ergo
-```
-
-For unattended production renewal, schedule those two commands with Task Scheduler, cron, or your host's preferred scheduler.
-
-## Local Test Certificate
-
-For local testing before DNS and Let's Encrypt are ready, create a short-lived self-signed certificate:
-
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\dev-cert.ps1
 ```
 
-This certificate is for local development only. IRC clients may show a certificate warning; accept it for local testing, then replace it with a real Let's Encrypt certificate before public launch.
-
 ## Operator Password
 
-Before public launch, replace the example operator password hash in `config/ergo/ircd.yaml`.
-
-Generate a hash:
+Before public launch, replace the example operator password hash in
+`config/ergo/ircd.yaml`, then use `/OPER admin <password>` from IRC.
 
 ```powershell
 docker compose run --rm ergo genpasswd
 ```
 
-Paste the generated hash into:
-
-```yaml
-opers:
-  admin:
-    password: "<generated-hash>"
-```
-
-Then become an operator from an IRC client with:
-
-```text
-/OPER admin <your-operator-password>
-```
-
 ## Start And Stop
-
-Start:
 
 ```powershell
 docker compose up -d
-```
-
-Logs:
-
-```powershell
 docker compose logs -f ergo
-```
-
-Reload Ergo config and TLS certificates without disconnecting users when supported by the changed setting:
-
-```powershell
 docker compose kill -s HUP ergo
-```
-
-Stop:
-
-```powershell
 docker compose down
 ```
 
 ## Client Settings
 
-Use these settings in HexChat, WeeChat, irssi, The Lounge, or another IRC client:
+Use these settings in HexChat, WeeChat, irssi, The Lounge, mIRC, or another IRC
+client:
 
 ```text
 Server: irc.eduardosilveira.dev
@@ -155,85 +80,92 @@ TLS/SSL: enabled
 Plaintext: disabled
 ```
 
-Register an account:
-
 ```text
 /msg NickServ REGISTER <password>
-```
-
-Register a channel after joining it while logged in:
-
-```text
 /msg ChanServ REGISTER #channel
 ```
 
-## Persistence
+## mIRC Shortcuts
 
-Important state is stored outside the container:
+```text
+/load -rs C:\Users\duzit\source\irc\clients\mirc\eduardoirc.mrc
+/eduardoirc
+/eduardoirc-lan
+/eduardoirc-public
+```
+
+`/eduardoirc` uses local plaintext `127.0.0.1:6667`. LAN and public aliases use
+TLS on `6697`.
+
+Control-plane shortcuts send commands to `#control`:
+
+```text
+/orc-agents
+/orc-status
+/orc-tasks
+/orc-new Build local IRC control plane
+/orc-agent-create researcher-agent researcher researcher Finds missing context
+/orc-assign TASK-0001 manager-agent
+/orc-join TASK-0001 coder-agent
+/orc-summarize TASK-0001
+/orc-logs TASK-0001
+```
+
+The current implemented command primitive is `@orc agent create`, which stores
+agent identity and context in SQLite through the orchestrator repository.
+
+## Control Plane Status
+
+Implemented:
+
+- `@orc` command parsing
+- `@orc agent create ...` command handling
+- SQLite-backed agent persistence with durable context
+- task ID and task-channel formatting helpers
+- structured agent message formatting
+- v0 permission policy that blocks execution capabilities
+
+Not implemented yet:
+
+- live IRC bot connection
+- channel joins/invites
+- task creation persistence
+- agent auto-replies
+- approval workflow
+
+```powershell
+npm test
+```
+
+## Persistence
 
 ```text
 config/ergo/          Ergo config and MOTD
 data/ergo/            Ergo database, accounts, channels, runtime state
 certs/letsencrypt/    TLS certificates
 backups/              Backup archives
+db/schema.sql         Control-plane schema
 ```
 
-The container can be removed and recreated without losing IRC accounts or registered channels as long as these directories are preserved.
+The `agents` table includes durable `context` so each agent can keep its role
+and operating notes across restarts.
 
-## Backup
-
-Create a timestamped backup:
+## Backup And Restore
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\backup.ps1
-```
-
-Archives are written to:
-
-```text
-backups/
-```
-
-Copy backup archives off the server regularly. Local-only backups do not protect against host loss.
-
-## Restore
-
-Stop the stack first:
-
-```powershell
 docker compose down
-```
-
-Restore an archive:
-
-```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\restore.ps1 -ArchivePath .\backups\irc-server-YYYYMMDD-HHMMSS.zip
-```
-
-Start the stack again:
-
-```powershell
 docker compose up -d
 ```
 
 ## Validation
 
-Render the Compose file:
-
 ```powershell
 docker compose config
-```
-
-Check that runtime paths are ignored by Git:
-
-```powershell
 git check-ignore .env certs data backups
-```
-
-Check important Ergo config values:
-
-```powershell
-Select-String -Path config\ergo\ircd.yaml -Pattern 'EduardoIRC','irc.eduardosilveira.dev','/etc/letsencrypt/live/irc.eduardosilveira.dev','max-concurrent-connections: 8'
+Select-String -Path config\ergo\ircd.yaml -Pattern 'EduardoIRC','irc.eduardosilveira.dev','max-concurrent-connections: 8'
+npm test
 ```
 
 ## References

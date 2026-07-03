@@ -1,0 +1,57 @@
+CREATE TABLE agents (
+  id TEXT PRIMARY KEY,
+  nick TEXT NOT NULL,
+  role TEXT NOT NULL,
+  status TEXT NOT NULL,
+  context TEXT NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE tasks (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  status TEXT NOT NULL,
+  channel TEXT NOT NULL,
+  assigned_to TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE task_events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  task_id TEXT NOT NULL,
+  actor TEXT NOT NULL,
+  event_type TEXT NOT NULL,
+  content TEXT NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (task_id) REFERENCES tasks(id)
+);
+
+CREATE TABLE irc_messages (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  channel TEXT NOT NULL,
+  sender TEXT NOT NULL,
+  message TEXT NOT NULL,
+  task_id TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (task_id) REFERENCES tasks(id)
+);
+
+CREATE TABLE approvals (
+  id TEXT PRIMARY KEY,
+  task_id TEXT,
+  requested_by TEXT NOT NULL,
+  action TEXT NOT NULL,
+  status TEXT NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (task_id) REFERENCES tasks(id)
+);
+
+CREATE TABLE artifacts (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  task_id TEXT,
+  kind TEXT NOT NULL,
+  content TEXT NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (task_id) REFERENCES tasks(id)
+);
