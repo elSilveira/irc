@@ -26,6 +26,45 @@ test('routes direct messages to the sender context', () => {
   }).contextKey, 'dm:eduardo');
 });
 
+test('routes prefixed direct messages to the sender context', () => {
+  assert.deepEqual(routeCodexMessage({
+    botNick: 'codex-agent',
+    sender: 'eduardo',
+    target: 'codex-agent',
+    text: '@codex status',
+  }), {
+    ok: true,
+    contextKey: 'dm:eduardo',
+    prompt: 'status',
+    isLogin: false,
+  });
+});
+
+test('marks login prompts as login requests', () => {
+  assert.equal(routeCodexMessage({
+    botNick: 'codex-agent',
+    sender: 'eduardo',
+    target: '#control',
+    text: '@codex login',
+  }).isLogin, true);
+});
+
+test('does not mark non-login prompts as login requests', () => {
+  assert.equal(routeCodexMessage({
+    botNick: 'codex-agent',
+    sender: 'eduardo',
+    target: '#control',
+    text: '@codex login please',
+  }).isLogin, false);
+
+  assert.equal(routeCodexMessage({
+    botNick: 'codex-agent',
+    sender: 'eduardo',
+    target: '#control',
+    text: '@codex status',
+  }).isLogin, false);
+});
+
 test('ignores unprefixed channel messages', () => {
   assert.deepEqual(routeCodexMessage({
     botNick: 'codex-agent',
