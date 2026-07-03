@@ -146,6 +146,23 @@ test('accepts flat thread and turn ids for transport compatibility', async () =>
   assert.deepEqual(await generated, { threadId: 'thr_flat', text: 'ok' });
 });
 
+test('accepts nested turn id in completion notifications', async () => {
+  const transport = createQueueTransport();
+  const client = createCodexAppClient({ transport, cwd: 'C:\\repo' });
+  const generated = client.generate({ prompt: 'hello' });
+
+  transport.push({
+    method: 'item/agentMessage/delta',
+    params: { threadId: 'thr_1', turnId: 'turn_1', delta: 'ok' },
+  });
+  transport.push({
+    method: 'turn/completed',
+    params: { threadId: 'thr_1', turn: { id: 'turn_1' } },
+  });
+
+  assert.deepEqual(await generated, { threadId: 'thr_1', text: 'ok' });
+});
+
 test('ignores completion notifications without exact thread and turn ids', async () => {
   const transport = createQueueTransport();
   const client = createCodexAppClient({ transport, cwd: 'C:\\repo' });

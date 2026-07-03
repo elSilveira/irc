@@ -3,7 +3,7 @@ function handleBotServ(text, services) {
   const normalized = (command || 'HELP').toUpperCase();
 
   if (normalized === 'HELP') {
-    return response(['BotServ commands: HELP | NEW <title> | AGENTS']);
+    return response(['BotService commands: HELP | NEW <title> | AGENTS']);
   }
 
   if (normalized === 'AGENTS') {
@@ -19,7 +19,7 @@ function handleBotServ(text, services) {
     };
   }
 
-  return response(['BotServ commands: HELP | NEW <title> | AGENTS']);
+  return response(['BotService commands: HELP | NEW <title> | AGENTS']);
 }
 
 function response(replies) {

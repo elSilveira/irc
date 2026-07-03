@@ -1,7 +1,10 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { handleLine } = require('../src/codex-bot');
+const {
+  createRuntimeConfig,
+  handleLine,
+} = require('../src/codex-bot');
 
 function fakeSocket() {
   const writes = [];
@@ -101,23 +104,39 @@ test('creates a task and joins its split channel', async () => {
   ]);
 });
 
-test('handles BotServ direct NEW commands', async () => {
+test('handles BotService direct NEW commands', async () => {
   const socket = fakeSocket();
 
   await handleLine(socket, {
-    nick: 'BotServ',
-    botServNick: 'BotServ',
+    nick: 'BotService',
+    botServNick: 'BotService',
     tasks: {
       createTask() {
         return { id: 'TASK-0001', channel: '#task-0001' };
       },
     },
-  }, ':eduardo PRIVMSG BotServ :NEW "Build agent"');
+  }, ':eduardo PRIVMSG BotService :NEW "Build agent"');
 
   assert.deepEqual(socket.writes, [
     'JOIN #task-0001\r\n',
     'PRIVMSG eduardo :Created TASK-0001 in #task-0001.\r\n',
   ]);
+});
+
+test('reads bot nick from cli args', () => {
+  assert.equal(createRuntimeConfig(['--nick', 'BotService']).nick, 'BotService');
+});
+
+test('logs registration errors from the irc server', async () => {
+  const logs = [];
+
+  await handleLine(fakeSocket(), {
+    log(message) {
+      logs.push(message);
+    },
+  }, ':server 432 * BotServ :Erroneous nickname');
+
+  assert.deepEqual(logs, ['IRC registration error 432: * BotServ Erroneous nickname']);
 });
 
 function fakeConversations(seed = {}) {

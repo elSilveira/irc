@@ -11,6 +11,6 @@ test('documents Codex app-server IRC workflow', () => {
   assert.match(readme, /direct messages/i);
   assert.match(readme, /@orc new/);
   assert.match(readme, /#task-0001/);
-  assert.match(readme, /BotServ/);
-  assert.match(readme, /\/msg BotServ NEW/);
+  assert.match(readme, /BotService/);
+  assert.match(readme, /\/msg BotService NEW/);
 });

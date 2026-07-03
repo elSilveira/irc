@@ -10,6 +10,6 @@ test('launcher avoids Start-Process environment duplication bug', () => {
 
   assert.doesNotMatch(script, /Start-Process/);
   assert.match(script, /cmd\.exe/);
-  assert.match(script, /CODEX_IRC_NICK/);
+  assert.match(script, /--nick/);
   assert.match(script, /start/);
 });

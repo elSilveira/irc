@@ -12,9 +12,8 @@ function Start-BotProcess {
     $logPath = Join-Path $repoRoot "$Nick.log"
     $errPath = Join-Path $repoRoot "$Nick.err.log"
     $command = @(
-        "set ""CODEX_IRC_NICK=$Nick"""
         "cd /d ""$repoRoot"""
-        """$node"" ""packages\orchestrator\src\codex-bot.js"""
+        """$node"" ""packages\orchestrator\src\codex-bot.js"" --nick ""$Nick"""
     ) -join " && "
 
     $redirected = "$command 1>""$logPath"" 2>""$errPath"""
@@ -24,9 +23,9 @@ function Start-BotProcess {
 Push-Location $repoRoot
 try {
     Start-BotProcess -Nick "codex-agent"
-    Start-BotProcess -Nick "BotServ"
+    Start-BotProcess -Nick "BotService"
 
-    Write-Output "Started codex-agent and BotServ."
+    Write-Output "Started codex-agent and BotService."
 }
 finally {
     Pop-Location

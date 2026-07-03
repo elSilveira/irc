@@ -119,7 +119,13 @@ function readId(result, key) {
 }
 
 function matchesTarget(params, threadId, turnId) {
-  return params.threadId === threadId && params.turnId === turnId;
+  return params.threadId === threadId && readParamTurnId(params) === turnId;
+}
+
+function readParamTurnId(params) {
+  if (params.turnId) return params.turnId;
+  if (params.turn && params.turn.id) return params.turn.id;
+  return '';
 }
 
 function readErrorMessage(params) {

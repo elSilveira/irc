@@ -3,15 +3,15 @@ const assert = require('node:assert/strict');
 
 const { handleBotServ } = require('../src/botserv-service');
 
-test('returns BotServ help', () => {
+test('returns BotService help', () => {
   assert.deepEqual(handleBotServ('HELP', {}), {
     ok: true,
     joins: [],
-    replies: ['BotServ commands: HELP | NEW <title> | AGENTS'],
+    replies: ['BotService commands: HELP | NEW <title> | AGENTS'],
   });
 });
 
-test('creates task channels through BotServ NEW', () => {
+test('creates task channels through BotService NEW', () => {
   const tasks = {
     createTask(title) {
       assert.equal(title, 'Build agent');
