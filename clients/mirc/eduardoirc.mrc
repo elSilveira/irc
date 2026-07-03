@@ -41,6 +41,10 @@ alias codex-help {
   msg #control @codex help
 }
 
+alias codex-login {
+  msg #control @codex login
+}
+
 alias codex-echo {
   if (!$1) { echo -a Usage: /codex-echo <text> | return }
   msg #control @codex echo $1-
@@ -99,6 +103,7 @@ menu status {
   .Codex agent
   ..Status:/codex-status
   ..Help:/codex-help
+  ..Login:/codex-login
   .Control plane
   ..Agents:/orc-agents
   ..Status:/orc-status

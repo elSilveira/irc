@@ -60,6 +60,24 @@ test('replies to direct codex messages using sender context', async () => {
   assert.deepEqual(socket.writes, ['PRIVMSG eduardo :direct reply\r\n']);
 });
 
+test('returns codex login url for login command', async () => {
+  const socket = fakeSocket();
+  const codex = {
+    async startLogin() {
+      return { authUrl: 'https://example.com/auth' };
+    },
+  };
+
+  await handleLine(socket, {
+    nick: 'codex-agent',
+    codex,
+  }, ':eduardo PRIVMSG #control :@codex login');
+
+  assert.deepEqual(socket.writes, [
+    'PRIVMSG #control :Codex login: https://example.com/auth\r\n',
+  ]);
+});
+
 function fakeConversations(seed = {}) {
   const saved = [];
   return {

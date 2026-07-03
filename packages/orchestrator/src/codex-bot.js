@@ -76,6 +76,11 @@ async function handlePrivmsg(socket, options, prefix, target, text) {
     text,
   });
   if (!routed.ok) return;
+  if (routed.isLogin) {
+    const login = await options.codex.startLogin();
+    socket.write(formatPrivmsg(replyTarget(target, sender, options.nick), formatLogin(login)));
+    return;
+  }
 
   const existing = options.conversations.findThread(routed.contextKey);
   const result = await options.codex.generate({
@@ -108,6 +113,14 @@ function nickFromPrefix(prefix) {
 
 function replyTarget(target, sender, botNick = config.nick) {
   return target.toLowerCase() === botNick.toLowerCase() ? sender : target;
+}
+
+function formatLogin(login) {
+  if (login.authUrl) return `Codex login: ${login.authUrl}`;
+  if (login.verificationUrl && login.userCode) {
+    return `Codex login: ${login.verificationUrl} code ${login.userCode}`;
+  }
+  return 'Codex login started. Follow the Codex app-server instructions.';
 }
 
 if (require.main === module) {

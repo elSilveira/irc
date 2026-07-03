@@ -10,7 +10,9 @@ test('mirc helper has codex shortcuts', () => {
 
   assert.match(script, /alias codex-status /);
   assert.match(script, /alias codex-help /);
+  assert.match(script, /alias codex-login /);
   assert.match(script, /@codex status/);
+  assert.match(script, /@codex login/);
 });
 
 test('mirc docs explain codex-agent commands', () => {
