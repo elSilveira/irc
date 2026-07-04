@@ -1,4 +1,5 @@
 import type { Repositories } from '@irc/db';
+import { listAgentSkills } from '@irc/shared';
 import type { IrcClient } from './irc.js';
 import { isTaskCommand, handleTaskCommand } from './task-commands.js';
 import { chooseAgentForTask } from './agent-routing.js';
@@ -33,6 +34,9 @@ export function handleCommand(command: { name: string; args: string[] }, service
         return { handled: true };
       case 'agents':
         reply(services, formatAgents(services.repos));
+        return { handled: true };
+      case 'skills':
+        reply(services, formatSkills());
         return { handled: true };
       case 'status':
       case 'tasks':
@@ -81,6 +85,7 @@ function helpLines(): string[] {
   return [
     '@orc help',
     '@orc agents - list registered agents',
+    '@orc skills - list available skills with descriptions',
     '@orc tasks - list tasks',
     '@orc new "title" - create a task channel',
     '@orc logs <TASK-0001> - show a task event timeline',
@@ -98,6 +103,10 @@ function formatAgents(repos: Repositories): string {
   const agents = repos.agents.listAgents();
   if (agents.length === 0) return 'No agents registered. Ask me to create one.';
   return `Agents: ${agents.map((agent) => agent.id).join(', ')}`;
+}
+
+function formatSkills(): string {
+  return `Skills: ${listAgentSkills().map((skill) => `${skill.id}: ${skill.description}`).join(' | ')}`;
 }
 
 function formatTasks(repos: Repositories): string {

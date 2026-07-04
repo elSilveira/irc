@@ -52,6 +52,7 @@ alias botserv-new {
 alias orc-agents { msg #control @orc agents }
 alias orc-status { msg #control @orc status }
 alias orc-tasks { msg #control @orc tasks }
+alias orc-skills-command { msg #control @orc skills }
 
 alias orc-skills {
   if (!$dialog(eduardoirc_skills)) { dialog -m eduardoirc_skills eduardoirc_skills }
@@ -98,53 +99,56 @@ alias orc-logs {
 
 dialog eduardoirc_skills {
   title "EduardoIRC Skills"
-  size -1 -1 250 206
+  size -1 -1 280 216
   option dbu
   text "Skills", 1, 8 7 42 8
-  list 10, 8 18 96 144, size
-  box "Interact", 20, 112 18 130 144
-  text "Skill", 21, 120 31 42 8
-  edit "", 23, 120 42 112 12, autohs
-  text "Request", 41, 120 58 42 8
-  edit "", 22, 120 69 112 12, autohs
-  text "Detail", 42, 120 86 42 8
-  edit "", 24, 120 97 112 32, multi return autovs vsbar
-  button "Create task", 30, 120 136 52 14
-  button "Agents", 31, 180 136 52 14
-  button "Skill help", 32, 120 154 52 14
-  button "Refresh", 33, 180 154 52 14
-  text "Select a skill, edit it if needed, then add request details.", 40, 8 169 224 16
-  button "Close", 2, 190 186 52 16, ok
+  list 10, 8 18 126 154, size hsbar
+  box "Interact", 20, 142 18 130 154
+  text "Skill", 21, 150 31 42 8
+  edit "", 23, 150 42 112 12, autohs
+  text "Request", 41, 150 58 42 8
+  edit "", 22, 150 69 112 12, autohs
+  text "Description / detail", 42, 150 86 70 8
+  edit "", 24, 150 97 112 42, multi return autovs vsbar
+  button "Create task", 30, 150 146 52 14
+  button "Agents", 31, 210 146 52 14
+  button "Skill help", 32, 150 164 52 14
+  button "Refresh", 33, 210 164 52 14
+  text "Select a skill to view its description; edit the skill or detail before creating a task.", 40, 8 181 254 16
+  button "Close", 2, 220 196 52 16, ok
 }
 
 on *:dialog:eduardoirc_skills:init:0:{
-  did -a eduardoirc_skills 10 implementation
-  did -a eduardoirc_skills 10 tdd
-  did -a eduardoirc_skills 10 repo-editing
-  did -a eduardoirc_skills 10 qa
-  did -a eduardoirc_skills 10 testing
-  did -a eduardoirc_skills 10 review
-  did -a eduardoirc_skills 10 orchestration
-  did -a eduardoirc_skills 10 planning
-  did -a eduardoirc_skills 10 routing
-  did -a eduardoirc_skills 10 research
-  did -a eduardoirc_skills 10 docs
-  did -a eduardoirc_skills 10 context
-  did -a eduardoirc_skills 10 ops
-  did -a eduardoirc_skills 10 logs
-  did -a eduardoirc_skills 10 diagnostics
+  did -a eduardoirc_skills 10 implementation: Builds scoped features and fixes with focused production edits.
+  did -a eduardoirc_skills 10 tdd: Adds or updates tests before implementation changes.
+  did -a eduardoirc_skills 10 repo-editing: Reads, writes, and keeps code changes limited to the assigned repo task.
+  did -a eduardoirc_skills 10 qa: Validates completed work against the requested behavior.
+  did -a eduardoirc_skills 10 testing: Runs targeted checks and reports actionable failures.
+  did -a eduardoirc_skills 10 review: Reviews code for regressions, risks, and missing coverage.
+  did -a eduardoirc_skills 10 orchestration: Coordinates agents, task state, and handoffs.
+  did -a eduardoirc_skills 10 planning: Breaks requested work into concrete execution steps.
+  did -a eduardoirc_skills 10 routing: Selects the right agent or channel for incoming work.
+  did -a eduardoirc_skills 10 research: Finds project context and supporting references before changes.
+  did -a eduardoirc_skills 10 docs: Updates written project guidance and user-facing docs.
+  did -a eduardoirc_skills 10 context: Collects and preserves relevant task, repo, and conversation context.
+  did -a eduardoirc_skills 10 ops: Handles runtime, deployment, and service operation tasks.
+  did -a eduardoirc_skills 10 logs: Inspects logs and traces to diagnose current behavior.
+  did -a eduardoirc_skills 10 diagnostics: Investigates failures and narrows them to likely causes.
 }
 
 on *:dialog:eduardoirc_skills:sclick:*:{
   if ($did == 10) {
-    var %skill = $did(eduardoirc_skills,10).seltext
-    if (%skill) { did -ra eduardoirc_skills 23 %skill }
+    var %line = $did(eduardoirc_skills,10).seltext
+    if (%line) {
+      did -ra eduardoirc_skills 23 $gettok(%line,1,58)
+      did -ra eduardoirc_skills 24 $gettok(%line,2-,58)
+    }
   }
   if ($did == 30) {
     var %skill = $did(eduardoirc_skills,23).text
     var %request = $did(eduardoirc_skills,22).text
     var %detail = $did(eduardoirc_skills,24).text
-    if (!%skill) { var %skill = $did(eduardoirc_skills,10).seltext }
+    if (!%skill) { var %skill = $gettok($did(eduardoirc_skills,10).seltext,1,58) }
     if (!%skill) { echo -a Select or enter a skill first. | return }
     if (!%request) { echo -a Enter a request first. | return }
     if (%detail) { msg #control @orc new $qt(%skill $+ : %request %detail) }
@@ -173,6 +177,7 @@ menu status {
   .Control plane
   ..Agents:/orc-agents
   ..Skills modal:/orc-skills
+  ..Skill list:/orc-skills-command
   ..Skill help:/orc-skill-help
   ..Status:/orc-status
   ..Tasks:/orc-tasks

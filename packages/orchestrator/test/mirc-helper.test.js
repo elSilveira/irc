@@ -37,9 +37,10 @@ test('skills modal allows editing skill and adding detail to task request', () =
   const script = readFileSync(scriptPath, 'utf8');
 
   assert.match(script, /edit "", 23, .*autohs/);
-  assert.match(script, /text "Detail", 42/);
+  assert.match(script, /text "Description \/ detail", 42/);
   assert.match(script, /edit "", 24, .*multi return autovs vsbar/);
-  assert.match(script, /did -ra eduardoirc_skills 23 %skill/);
+  assert.match(script, /did -ra eduardoirc_skills 23 \$gettok\(%line,1,58\)/);
+  assert.match(script, /did -ra eduardoirc_skills 24 \$gettok\(%line,2-,58\)/);
   assert.match(script, /var %skill = \$did\(eduardoirc_skills,23\)\.text/);
   assert.match(script, /var %detail = \$did\(eduardoirc_skills,24\)\.text/);
   assert.match(script, /if \(%detail\) \{ msg #control @orc new \$qt\(%skill \$\+ : %request %detail\) \}/);
