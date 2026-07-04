@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { routeOrchestratorMessage } from './router.js';
+import { isManagedAgentDirectMessage, routeOrchestratorMessage } from './router.js';
 
 test('routes a direct message as chat', () => {
   const routed = routeOrchestratorMessage({
@@ -42,10 +42,10 @@ test('routes unknown @orc subcommand to chat', () => {
     botNick: 'orchestrator',
     sender: 'eduardo',
     target: '#control',
-    text: '@orc summarize TASK-0001',
+    text: '@orc frobnicate TASK-0001',
   });
   assert.equal(routed.kind, 'chat');
-  assert.equal(routed.prompt, 'summarize TASK-0001');
+  assert.equal(routed.prompt, 'frobnicate TASK-0001');
 });
 
 test('ignores unrelated channel chatter', () => {
@@ -56,6 +56,21 @@ test('ignores unrelated channel chatter', () => {
     text: 'hello everyone',
   });
   assert.equal(routed.kind, 'ignore');
+});
+
+test('identifies managed agent direct messages to orchestrator', () => {
+  assert.equal(isManagedAgentDirectMessage({
+    botNick: 'orchestrator',
+    sender: 'FeatureImpl',
+    target: 'orchestrator',
+    agentNicks: ['FeatureImpl'],
+  }), true);
+  assert.equal(isManagedAgentDirectMessage({
+    botNick: 'orchestrator',
+    sender: 'esilveira',
+    target: 'orchestrator',
+    agentNicks: ['FeatureImpl'],
+  }), false);
 });
 
 test('ignores the orchestrator own messages', () => {

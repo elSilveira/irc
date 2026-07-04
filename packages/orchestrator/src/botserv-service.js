@@ -7,7 +7,23 @@ function handleBotServ(text, services) {
   }
 
   if (normalized === 'AGENTS') {
-    return response(['Agents: codex-agent']);
+    return response(listAgents(services.agents));
+  }
+
+  if (normalized === 'SHOW') {
+    return response(showAgent(args[0], services.agents));
+  }
+
+  if (normalized === 'CREATE') {
+    return response(createAgent(args, services.agents));
+  }
+
+  if (normalized === 'UPDATE') {
+    return response(updateAgent(args, services.agents));
+  }
+
+  if (normalized === 'DELETE') {
+    return response(deleteAgent(args[0], services.agents));
   }
 
   if (normalized === 'NEW') {
@@ -24,12 +40,85 @@ function handleBotServ(text, services) {
 
 function helpLines() {
   return [
-    'BotService commands:',
-    'HELP - show this guide',
-    'NEW <title> - create TASK-0001 and join #task-0001',
-    'AGENTS - list available agents',
-    'Codex chat: use @codex <message> in a channel or /msg codex-agent <message>',
+    'BotService',
+    'HELP | AGENTS | SHOW <id> | DELETE <id>',
+    'NEW "title" -> create task channel',
+    'CREATE <id> --nick <nick> --role <role>',
+    '  --context "text"',
+    '  [--strengths a,b] [--weaknesses x] [--capacity n]',
+    'UPDATE <id> [--nick n] [--role r]',
+    '  [--context "text"]',
+    'Codex: @codex <message> or /msg codex-agent <message>',
   ];
+}
+
+function listAgents(repository) {
+  const managed = repository ? repository.listAgents() : [];
+  return [
+    'Agents',
+    ...managed.map(formatAgent),
+    'codex-agent | legacy bridge',
+  ];
+}
+
+function showAgent(id, repository) {
+  if (!id) return ['SHOW requires id'];
+  const agent = repository.findAgent(id);
+  if (!agent) return [`Agent not found: ${id}`];
+  return routeLine(agent) ? [formatAgent(agent), routeLine(agent), `context=${agent.context}`] : [
+    formatAgent(agent),
+    `context=${agent.context}`,
+  ];
+}
+
+function createAgent(args, repository) {
+  const id = args[0];
+  const flags = parseFlags(args.slice(1));
+  if (!id || !flags.nick || !flags.role || !flags.context) {
+    return ['CREATE requires id, --nick, --role, and --context'];
+  }
+  const agent = repository.createAgent({
+    id,
+    nick: flags.nick,
+    role: flags.role,
+    context: flags.context,
+    strengths: flags.strengths,
+    weaknesses: flags.weaknesses,
+    capacity: parseCapacity(flags.capacity),
+  });
+  return [`OK created ${agent.id} | nick=${agent.nick} | role=${agent.role}`];
+}
+
+function updateAgent(args, repository) {
+  const id = args[0];
+  const flags = parseFlags(args.slice(1));
+  if (!id) return ['UPDATE requires id'];
+  if (!flags.role && !flags.context && !flags.nick && !flags.strengths && !flags.weaknesses && !flags.capacity) {
+    return ['UPDATE requires --nick, --role, --context, or route fields'];
+  }
+  repository.updateAgent(id, cleanFields({
+    nick: flags.nick,
+    role: flags.role,
+    context: flags.context,
+    strengths: flags.strengths,
+    weaknesses: flags.weaknesses,
+    capacity: parseCapacity(flags.capacity),
+  }));
+  return [`OK updated ${id}`];
+}
+
+function deleteAgent(id, repository) {
+  if (!id) return ['DELETE requires id'];
+  return repository.deleteAgent(id) ? [`OK deleted ${id}`] : [`Agent not found: ${id}`];
+}
+
+function formatAgent(agent) {
+  return `${agent.id} | nick=${agent.nick} | role=${agent.role} | status=${agent.status}`;
+}
+
+function routeLine(agent) {
+  if (!agent.strengths && !agent.weaknesses && !agent.capacity) return null;
+  return `route strengths=${agent.strengths || '-'} | weaknesses=${agent.weaknesses || '-'} | capacity=${agent.capacity || 1}`;
 }
 
 function response(replies) {
@@ -61,6 +150,28 @@ function tokenize(text) {
 function push(tokens, value) {
   const token = value.trim();
   if (token) tokens.push(token);
+}
+
+function parseFlags(args) {
+  const flags = {};
+  for (let index = 0; index < args.length; index += 2) {
+    const key = args[index];
+    const value = args[index + 1];
+    if (key && key.startsWith('--') && value) {
+      flags[key.slice(2)] = value;
+    }
+  }
+  return flags;
+}
+
+function cleanFields(fields) {
+  return Object.fromEntries(Object.entries(fields).filter(([, value]) => value !== undefined));
+}
+
+function parseCapacity(value) {
+  if (value === undefined) return undefined;
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
 }
 
 module.exports = {

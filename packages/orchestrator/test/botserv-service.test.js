@@ -4,17 +4,12 @@ const assert = require('node:assert/strict');
 const { handleBotServ } = require('../src/botserv-service');
 
 test('returns BotService help', () => {
-  assert.deepEqual(handleBotServ('HELP', {}), {
-    ok: true,
-    joins: [],
-    replies: [
-      'BotService commands:',
-      'HELP - show this guide',
-      'NEW <title> - create TASK-0001 and join #task-0001',
-      'AGENTS - list available agents',
-      'Codex chat: use @codex <message> in a channel or /msg codex-agent <message>',
-    ],
-  });
+  const result = handleBotServ('HELP', {});
+  assert.equal(result.ok, true);
+  assert.equal(result.joins.length, 0);
+  assert.ok(result.replies.every((line) => line.length <= 90));
+  assert.match(result.replies.join('\n'), /CREATE <id>/);
+  assert.match(result.replies.join('\n'), /Codex: @codex/);
 });
 
 test('creates task channels through BotService NEW', () => {
@@ -33,9 +28,121 @@ test('creates task channels through BotService NEW', () => {
 });
 
 test('lists available service agents', () => {
-  assert.deepEqual(handleBotServ('AGENTS', {}), {
+  const agents = {
+    listAgents: () => [
+      { id: 'feature', nick: 'feature-implementer', role: 'implementer', status: 'idle' },
+    ],
+  };
+
+  assert.deepEqual(handleBotServ('AGENTS', { agents }), {
     ok: true,
     joins: [],
-    replies: ['Agents: codex-agent'],
+    replies: ['Agents', 'feature | nick=feature-implementer | role=implementer | status=idle', 'codex-agent | legacy bridge'],
   });
+});
+
+test('shows one managed agent', () => {
+  const agents = {
+    findAgent(id) {
+      assert.equal(id, 'feature');
+      return { id, nick: 'feature-implementer', role: 'implementer', status: 'idle', context: 'Builds features' };
+    },
+  };
+
+  assert.deepEqual(handleBotServ('SHOW feature', { agents }), {
+    ok: true,
+    joins: [],
+    replies: ['feature | nick=feature-implementer | role=implementer | status=idle', 'context=Builds features'],
+  });
+});
+
+test('creates managed agents through BotService', () => {
+  const agents = {
+    createAgent(input) {
+      assert.deepEqual(input, {
+        id: 'feature',
+        nick: 'feature-implementer',
+        role: 'implementer',
+        context: 'Builds features',
+        strengths: 'typescript,tests',
+        weaknesses: 'infra',
+        capacity: 2,
+      });
+      return { ...input, status: 'idle' };
+    },
+  };
+
+  assert.deepEqual(
+    handleBotServ(
+      'CREATE feature --nick feature-implementer --role implementer --context "Builds features" --strengths typescript,tests --weaknesses infra --capacity 2',
+      { agents },
+    ),
+    { ok: true, joins: [], replies: ['OK created feature | nick=feature-implementer | role=implementer'] },
+  );
+});
+
+test('keeps create replies compact for mIRC', () => {
+  const agents = {
+    createAgent(input) {
+      return { ...input, status: 'idle' };
+    },
+  };
+
+  const result = handleBotServ(
+    'CREATE feature-implementer --nick feature-implementer --role implementer --context Implements IRC features',
+    { agents },
+  );
+
+  assert.ok(result.replies.every((line) => line.length <= 90));
+  assert.deepEqual(result.replies, [
+    'OK created feature-implementer | nick=feature-implementer | role=implementer',
+  ]);
+});
+
+test('updates and deletes managed agents through BotService', () => {
+  const calls = [];
+  const agents = {
+    updateAgent(id, fields) {
+      calls.push(['update', id, fields]);
+      return { id, nick: 'feature-implementer', role: fields.role, status: 'idle', context: fields.context };
+    },
+    deleteAgent(id) {
+      calls.push(['delete', id]);
+      return true;
+    },
+  };
+
+  assert.deepEqual(
+    handleBotServ('UPDATE feature --role qa --context "Reviews changes" --strengths review --capacity 3', { agents })
+      .replies,
+    ['OK updated feature'],
+  );
+  assert.deepEqual(handleBotServ('DELETE feature', { agents }).replies, ['OK deleted feature']);
+  assert.deepEqual(calls, [
+    ['update', 'feature', { role: 'qa', context: 'Reviews changes', strengths: 'review', capacity: 3 }],
+    ['delete', 'feature'],
+  ]);
+});
+
+test('shows routing metadata for one managed agent', () => {
+  const agents = {
+    findAgent(id) {
+      return {
+        id,
+        nick: 'feature-implementer',
+        role: 'implementer',
+        status: 'idle',
+        context: 'Builds features',
+        strengths: 'typescript,tests',
+        weaknesses: 'infra',
+        capacity: 2,
+      };
+    },
+  };
+
+  assert.deepEqual(handleBotServ('SHOW feature', { agents }).replies, [
+    'feature | nick=feature-implementer | role=implementer | status=idle',
+    'route strengths=typescript,tests | weaknesses=infra | capacity=2',
+    'context=Builds features',
+  ]);
 });

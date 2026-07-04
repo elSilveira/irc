@@ -15,7 +15,7 @@ plaintext `6667` on host loopback only for local development.
 - Legacy control plane: Node.js (CommonJS) under `packages/orchestrator`
 - New control plane: TypeScript pnpm monorepo (`packages/{shared,db,llm,tools}` + `apps/orchestrator`)
 - Persistence: SQLite (`data/orchestrator.sqlite`) plus Ergo state in `data/ergo/`
-- Tests: `node --test`, **120 passing / 0 failing** (77 legacy JS + 43 TypeScript)
+- Tests: `node --test`, **203 passing / 0 failing** (84 legacy JS + 119 TypeScript)
 - `docker compose config` parses cleanly
 
 ## Repository Layout
@@ -40,13 +40,28 @@ docs/superpowers/             Plans and design notes
 
 | Role | Nick | Responsibility |
 | --- | --- | --- |
-| Orchestrator | `orchestrator` | Global service. Sees all channels and calls tools through the active brain. |
-| BotService | `BotService` | Services facade: help, task creation. Legacy. |
-| codex-agent | `codex-agent` | Legacy direct Codex app-server chat bridge. |
+| Orchestrator | `orchestrator` | Global service. Sees all channels and calls tools through the active brain. Owns task flow and agent runtime; the supervisor reconciles running agents with the `agents` table. |
+| BotService | `BotService` | Agent CRUD/help facade (legacy): `HELP`, `AGENTS`, `SHOW`, `CREATE`, `UPDATE`, `DELETE`, `NEW`. Writes the shared `agents` table. |
+| codex-agent | `codex-agent` | Legacy direct Codex app-server chat bridge. Not a managed agent (no `agents` row, never spawned/stopped by the supervisor). |
 
 The orchestrator owns the ToolGateway. LangChain uses native LangChain tools;
 Codex-backed orchestrator and spawned agents use `IRC_TOOL` lines against the
 same gateway.
+
+## App And Package Split
+
+`packages/orchestrator` is the Legacy CommonJS control plane. It keeps
+compatibility bots (`codex-agent`, the legacy chat bridge; and `BotService`, the
+agent CRUD/help facade), mIRC tests, legacy commands, and the Codex app-server
+client consumed by the new bridge.
+
+`apps/orchestrator` is the TypeScript global orchestrator. It owns IRC routing,
+the ToolGateway, active brain selection, spawned agents, chain-aware agent
+conversation context, and agent lifecycle reconciliation through the supervisor.
+
+New orchestration behavior belongs in `apps/orchestrator`; reusable primitives
+belong in `packages/shared`, `packages/db`, `packages/llm`, or `packages/tools`.
+See `docs/architecture.md` before moving code between these areas.
 
 ## New TypeScript Packages
 
@@ -62,7 +77,8 @@ classes.
 
 `node:sqlite` (`DatabaseSync`) repositories bootstrapped from `db/schema.sql`:
 `createRepositories`, `agents` (create/find/list/update), `tasks`
-(create/list), and `conversations` (save/find thread).
+(create/list), `task_events`, `irc_messages`, approvals, and `conversations`
+(save/find thread).
 
 ### `@irc/llm`
 
@@ -113,19 +129,32 @@ OLLAMA_MODEL=llama3.1
 - LangChain tool-calling orchestrator over IRC
 - Codex-backed tool loop for read-only repo tools and agent management
 - Read-only workspace tools (list/read files, git status/diff)
+- Scoped implementation tools (`write_file`, `run_verification`) for IRC agents
 - Agent management tool (create/list/update) usable by the orchestrator
 - Spawned agents receive the shared Codex tool protocol in their role prompt
+- Agent replies carry `[chain:<id>]` markers for channel/DM continuity
+- Agent lifecycle reconciliation: the supervisor starts new agents and stops
+  deleted ones to match the shared `agents` table after every brain turn and on
+  startup
+- Task lifecycle protocol: agents emit structured `[task:ID] [type:ack|wip|...]`
+  lines; the orchestrator ingests them into the `task_events` log, reflects
+  status on the task row, persists the raw IRC line in `irc_messages`, and
+  `@orc logs <TASK>` shows the timeline
+- Heartbeat monitor: a periodic check flags `doing` tasks whose last `wip`
+  event is stale and alerts `#logs`
+- Approval workflow: a `blocked` event opens a pending approval;
+  `@orc approvals` lists them and `@orc approve|deny <TASK>` resolves them
+- Kanban wiring: `@orc assign <TASK> <agent>` (records `assigned_to`, DMs the
+  agent), `@orc review <TASK>`, and `@orc summarize <TASK>` overview
 - Permission-gated, logged tool execution
 - IRC routing for commands, mentions, and DMs
 - Legacy control-plane features retained
 
 ## Not Implemented Yet
 
-- Approval workflow (`approvals` table exists, no handler yet)
 - Write/execute tool classes (blocked by policy by design)
-- `irc_messages` and `artifacts` table persistence in code
+- Artifact table persistence in code
 - Real worker queue with durable task execution
-- Full Kanban state machine and `@orc assign/review/summarize/logs` wiring
 
 ## Validation
 
@@ -145,5 +174,5 @@ npm run orchestrator:dev
 
 ## Next Likely Work
 
-Wire the approval handler, persist IRC messages/artifacts, and implement the
-remaining Kanban commands against the new orchestrator roadmap.
+Persist artifacts and implement the durable worker queue against the new
+orchestrator roadmap.

@@ -1,10 +1,18 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync, mkdirSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createRepositories } from '@irc/db';
-import { ToolGateway, listFilesTool, readFileTool, resolvePath, manageAgentsTool } from './index.js';
+import {
+  ToolGateway,
+  listFilesTool,
+  readFileTool,
+  writeFileTool,
+  runVerificationTool,
+  resolvePath,
+  manageAgentsTool,
+} from './index.js';
 
 function makeContext() {
   const root = mkdtempSync(join(tmpdir(), 'irc-tools-'));
@@ -38,6 +46,44 @@ test('read_file returns file contents', async () => {
   const result = await gateway.execute('read_file', { path: 'hello.txt' });
   assert.equal(result.ok, true);
   assert.equal((result.data as { content: string }).content, 'hello world');
+  ctx.close();
+});
+
+test('write_file creates a workspace file and keeps it readable', async () => {
+  const ctx = makeContext();
+  const gateway = new ToolGateway([writeFileTool, readFileTool], {
+    workspaceRoot: ctx.root,
+    agents: ctx.repos.agents,
+  });
+
+  const written = await gateway.execute('write_file', { path: 'notes/status.txt', content: 'green' });
+  assert.equal(written.ok, true);
+  assert.equal(readFileSync(join(ctx.root, 'notes', 'status.txt'), 'utf8'), 'green');
+
+  const read = await gateway.execute('read_file', { path: 'notes/status.txt' });
+  assert.equal((read.data as { content: string }).content, 'green');
+  ctx.close();
+});
+
+test('write_file rejects traversal and oversized hand-written files', async () => {
+  const ctx = makeContext();
+  const gateway = new ToolGateway([writeFileTool], { workspaceRoot: ctx.root, agents: ctx.repos.agents });
+  const outside = await gateway.execute('write_file', { path: '../escape.txt', content: 'no' });
+  const tooLong = await gateway.execute('write_file', { path: 'long.ts', content: `${'x\n'.repeat(201)}` });
+
+  assert.equal(outside.ok, false);
+  assert.equal(tooLong.ok, false);
+  assert.equal(existsSync(join(ctx.root, 'long.ts')), false);
+  ctx.close();
+});
+
+test('run_verification only runs allowlisted commands', async () => {
+  const ctx = makeContext();
+  const gateway = new ToolGateway([runVerificationTool], { workspaceRoot: ctx.root, agents: ctx.repos.agents });
+
+  const denied = await gateway.execute('run_verification', { command: 'npm install' });
+  assert.equal(denied.ok, false);
+  assert.match(denied.error ?? '', /not allowlisted/);
   ctx.close();
 });
 
@@ -78,12 +124,17 @@ test('manage_agents creates and lists agents', async () => {
     nick: 'manager-agent',
     role: 'manager',
     context: 'plans work',
+    strengths: 'planning,docs',
+    weaknesses: 'frontend',
+    capacity: 2,
   });
   assert.equal(created.ok, true);
 
   const list = await gateway.execute('manage_agents', { action: 'list' });
-  const data = list.data as { agents: { id: string }[] };
+  const data = list.data as { agents: { id: string; strengths: string; capacity: number }[] };
   assert.deepEqual(data.agents.map((a) => a.id), ['manager-agent']);
+  assert.equal(data.agents[0]?.strengths, 'planning,docs');
+  assert.equal(data.agents[0]?.capacity, 2);
   ctx.close();
 });
 

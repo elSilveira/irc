@@ -10,7 +10,7 @@ export const manageAgentsTool: Tool = {
   name: 'manage_agents',
   description:
     'Create, list, or update IRC agents. Actions: list, create, update. ' +
-    'create needs id, nick, role, context. update needs id plus any of role/context.',
+    'create needs id, nick, role, context. Optional: strengths, weaknesses, capacity.',
   capability: 'manage_agents',
   schema: 'object',
   async run(input: unknown, context: ToolContext): Promise<ToolResult> {
@@ -33,11 +33,14 @@ function createAgent(input: unknown, context: ToolContext): ToolResult {
   const nick = readString(input, 'nick');
   const role = readString(input, 'role');
   const agentContext = readString(input, 'context');
+  const strengths = readString(input, 'strengths');
+  const weaknesses = readString(input, 'weaknesses');
+  const capacity = readNumber(input, 'capacity');
   if (!id || !nick || !role || !agentContext) {
     return { ok: false, error: 'create requires id, nick, role, context' };
   }
   try {
-    const agent = context.agents.createAgent({ id, nick, role, context: agentContext });
+    const agent = context.agents.createAgent({ id, nick, role, context: agentContext, strengths, weaknesses, capacity });
     return { ok: true, data: { agent } };
   } catch (error) {
     return { ok: false, error: message(error) };
@@ -47,13 +50,19 @@ function createAgent(input: unknown, context: ToolContext): ToolResult {
 function updateAgent(input: unknown, context: ToolContext): ToolResult {
   const id = readString(input, 'id');
   if (!id) return { ok: false, error: 'update requires id' };
-  const fields: { role?: string; context?: string } = {};
+  const fields: { role?: string; context?: string; strengths?: string; weaknesses?: string; capacity?: number } = {};
   const role = readString(input, 'role');
   const agentContext = readString(input, 'context');
+  const strengths = readString(input, 'strengths');
+  const weaknesses = readString(input, 'weaknesses');
+  const capacity = readNumber(input, 'capacity');
   if (role) fields.role = role;
   if (agentContext) fields.context = agentContext;
+  if (strengths) fields.strengths = strengths;
+  if (weaknesses) fields.weaknesses = weaknesses;
+  if (capacity) fields.capacity = capacity;
   if (Object.keys(fields).length === 0) {
-    return { ok: false, error: 'update requires at least one of role, context' };
+    return { ok: false, error: 'update requires at least one editable field' };
   }
   try {
     const agent = context.agents.updateAgent(id, fields);
@@ -67,6 +76,14 @@ function readString(input: unknown, field: string): string | undefined {
   if (input && typeof input === 'object') {
     const value = (input as Record<string, unknown>)[field];
     if (typeof value === 'string' && value.trim()) return value.trim();
+  }
+  return undefined;
+}
+
+function readNumber(input: unknown, field: string): number | undefined {
+  if (input && typeof input === 'object') {
+    const value = (input as Record<string, unknown>)[field];
+    if (typeof value === 'number' && Number.isFinite(value) && value > 0) return value;
   }
   return undefined;
 }

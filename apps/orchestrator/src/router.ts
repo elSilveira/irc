@@ -19,7 +19,27 @@ export interface RouteInput {
   text: string;
 }
 
-const DETERMINISTIC_COMMANDS = new Set(['help', 'agents', 'status', 'tasks', 'new']);
+export interface ManagedAgentDirectInput {
+  botNick: string;
+  sender: string;
+  target: string;
+  agentNicks: string[];
+}
+
+const DETERMINISTIC_COMMANDS = new Set([
+  'help',
+  'agents',
+  'status',
+  'tasks',
+  'new',
+  'logs',
+  'approvals',
+  'approve',
+  'deny',
+  'assign',
+  'review',
+  'summarize',
+]);
 
 export function routeOrchestratorMessage(input: RouteInput): RoutedMessage {
   const { botNick, sender, target, text } = input;
@@ -51,6 +71,12 @@ export function routeOrchestratorMessage(input: RouteInput): RoutedMessage {
   }
 
   return ignore(input);
+}
+
+export function isManagedAgentDirectMessage(input: ManagedAgentDirectInput): boolean {
+  if (input.target.toLowerCase() !== input.botNick.toLowerCase()) return false;
+  const sender = input.sender.toLowerCase();
+  return input.agentNicks.some((nick) => nick.toLowerCase() === sender);
 }
 
 function matchMention(text: string, mention: string): string | null {

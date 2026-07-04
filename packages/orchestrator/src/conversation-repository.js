@@ -4,6 +4,7 @@ const { DatabaseSync } = require('node:sqlite');
 
 function createConversationRepository(location) {
   const database = new DatabaseSync(location);
+  database.exec('PRAGMA busy_timeout = 5000');
   database.exec(readSchema());
 
   return {

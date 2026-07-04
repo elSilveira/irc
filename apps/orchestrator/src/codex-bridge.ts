@@ -13,10 +13,12 @@ interface LegacyCodexModule {
   createCodexAppClient(options?: { cwd?: string; timeout?: number; developerInstructions?: string }): LegacyCodexAppClient;
 }
 
-const READ_ONLY_INSTRUCTIONS = [
-  'You are an IRC control-plane agent operating in a READ-ONLY sandbox.',
-  'You MAY inspect the workspace: read files and run read-only commands such as ls, cat, git status, git diff.',
-  'You MUST NOT edit files, write, push git, install packages, deploy, browse the network, or access secrets.',
+export const CODEX_BRIDGE_INSTRUCTIONS = [
+  'You are an IRC control-plane agent with scoped external workspace tools.',
+  'When the prompt advertises IRC_TOOL write_file, you may edit workspace files by emitting that tool request.',
+  'When the prompt advertises IRC_TOOL run_verification, you may run the listed verification commands through that tool.',
+  'Do not directly run shell commands, push git, install packages, deploy, browse the network, or access secrets.',
+  'Use only the IRC_TOOL requests advertised in the current prompt for workspace actions.',
   'Keep answers concise and suitable for IRC.',
 ].join(' ');
 
@@ -39,7 +41,7 @@ export function createCodexBridge(options: { cwd: string; useCodex: boolean }): 
   let legacy: LegacyCodexAppClient | undefined;
   try {
     const module = loadLegacyCodexModule();
-    legacy = module.createCodexAppClient({ cwd: options.cwd, developerInstructions: READ_ONLY_INSTRUCTIONS });
+    legacy = module.createCodexAppClient({ cwd: options.cwd, developerInstructions: CODEX_BRIDGE_INSTRUCTIONS });
   } catch {
     return { client: { configured: false, async generate() {
       throw new Error('codex app-server client unavailable');

@@ -27,14 +27,24 @@ export function parseLine(line: string): ParsedLine {
 }
 
 const CRLF = '\r\n';
+const MAX_LINE_BYTES = 512;
 
 export const format = {
   nick: (nick: string) => `NICK ${nick}${CRLF}`,
   user: (user: string) => `USER ${user} 0 * :${user}${CRLF}`,
   join: (channel: string) => `JOIN ${channel}${CRLF}`,
-  privmsg: (target: string, text: string) => `PRIVMSG ${target} :${text}${CRLF}`,
+  privmsg: (target: string, text: string) => safeLine(`PRIVMSG ${target} :`, text),
   pong: (server: string) => `PONG :${server}${CRLF}`,
+  quit: (message: string) => `QUIT :${message}${CRLF}`,
 };
+
+function safeLine(prefix: string, text: string): string {
+  let body = text.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
+  while (Buffer.byteLength(`${prefix}${body}${CRLF}`, 'utf8') > MAX_LINE_BYTES) {
+    body = body.slice(0, -1);
+  }
+  return `${prefix}${body}${CRLF}`;
+}
 
 export function nickFromPrefix(prefix: string | null): string {
   return (prefix ?? '').split('!')[0] ?? '';
@@ -81,6 +91,12 @@ export class IrcClient {
 
   privmsg(target: string, text: string): void {
     this.send(format.privmsg(target, text));
+  }
+
+  /** Send QUIT and tear down the socket. Safe to call when already closed. */
+  quit(message = 'disconnect'): void {
+    if (this.socket.writable) this.send(format.quit(message));
+    this.socket.destroy();
   }
 
   private onData(chunk: Buffer): void {

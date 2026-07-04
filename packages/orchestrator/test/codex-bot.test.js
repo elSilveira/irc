@@ -81,7 +81,7 @@ test('returns codex login url for login command', async () => {
   ]);
 });
 
-test('creates a task and joins its split channel', async () => {
+test('ignores @orc commands so orchestrator owns task creation', async () => {
   const socket = fakeSocket();
 
   await handleLine(socket, {
@@ -98,10 +98,7 @@ test('creates a task and joins its split channel', async () => {
     },
   }, ':eduardo PRIVMSG #control :@orc new "Build agent"');
 
-  assert.deepEqual(socket.writes, [
-    'JOIN #task-0001\r\n',
-    'PRIVMSG #control :Created TASK-0001 in #task-0001.\r\n',
-  ]);
+  assert.deepEqual(socket.writes, []);
 });
 
 test('handles BotService direct NEW commands', async () => {

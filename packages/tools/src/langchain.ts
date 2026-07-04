@@ -14,6 +14,10 @@ const SCHEMAS: SchemaMap = {
   read_file: z.object({
     path: z.string().describe('File path relative to the workspace root.'),
   }),
+  write_file: z.object({
+    path: z.string().describe('File path relative to the workspace root.'),
+    content: z.string().describe('Full UTF-8 file contents to write.'),
+  }),
   git_status: z.object({}),
   git_diff: z.object({
     staged: z.boolean().optional().describe('Show staged (--cached) changes instead of unstaged.'),
@@ -32,6 +36,11 @@ const SCHEMAS: SchemaMap = {
         .describe('Durable operating notes / responsibility of the agent.'),
     })
     .describe('Manage IRC agents globally (create, list, update).'),
+  run_verification: z.object({
+    command: z
+      .enum(['npm test', 'npm run test:ts', 'npm run typecheck', 'docker compose config --quiet'])
+      .describe('Exact allowlisted verification command to run.'),
+  }),
 };
 
 export function toLangChainTools(gateway: ToolGateway): DynamicStructuredTool[] {
@@ -58,12 +67,16 @@ function describe(name: string): string {
       return 'List files and directories inside a workspace path.';
     case 'read_file':
       return 'Read a text file from the workspace.';
+    case 'write_file':
+      return 'Create or replace a text file inside the workspace.';
     case 'git_status':
       return 'Show `git status --porcelain` for the workspace.';
     case 'git_diff':
       return 'Show `git diff` (unstaged by default, or staged) for the workspace.';
     case 'manage_agents':
       return 'Create, list, or update IRC agents in the control plane.';
+    case 'run_verification':
+      return 'Run an allowlisted verification command in the workspace.';
     default:
       return name;
   }

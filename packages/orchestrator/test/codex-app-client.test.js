@@ -2,50 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const { createCodexAppClient } = require('../src/codex-app-client');
-
-function createQueueTransport(handlers = {}) {
-  const calls = [];
-  const notifications = [];
-  const waiters = [];
-
-  function push(notification) {
-    if (waiters.length > 0) {
-      waiters.shift()(notification);
-      return;
-    }
-    notifications.push(notification);
-  }
-
-  return {
-    calls,
-    push,
-    async request(method, params) {
-      calls.push({ type: 'request', method, params });
-      if (handlers[method]) return handlers[method](params, calls);
-      if (method === 'initialize') return { protocolVersion: 1 };
-      if (method === 'account/login/start') return { authUrl: 'https://example.com/auth' };
-      if (method === 'account/read') return { id: 'acct_1' };
-      if (method === 'thread/start') return { thread: { id: 'thr_1' } };
-      if (method === 'turn/start') return { turn: { id: 'turn_1' } };
-      throw new Error(`unexpected request: ${method}`);
-    },
-    async notify(method, params) {
-      calls.push({ type: 'notify', method, params });
-    },
-    nextNotification() {
-      if (notifications.length > 0) return Promise.resolve(notifications.shift());
-      return new Promise((resolve) => waiters.push(resolve));
-    },
-  };
-}
-
-function countCalls(transport, method) {
-  return transport.calls.filter((call) => call.method === method).length;
-}
-
-function tick() {
-  return new Promise((resolve) => setImmediate(resolve));
-}
+const { countCalls, createQueueTransport, tick } = require('./codex-app-client-fixture');
 
 test('logs in and generates text through the Codex app server', async () => {
   const transport = createQueueTransport();
@@ -78,6 +35,27 @@ test('logs in and generates text through the Codex app server', async () => {
     'thread/start',
     'turn/start',
   ]);
+});
+
+test('thread instructions allow scoped external IRC tools', async () => {
+  const transport = createQueueTransport();
+  const client = createCodexAppClient({ transport, cwd: 'C:\\repo' });
+  const generated = client.generate({ prompt: 'hello' });
+
+  transport.push({
+    method: 'turn/completed',
+    params: { threadId: 'thr_1', turnId: 'turn_1' },
+  });
+  await generated;
+
+  const threadStart = transport.calls.find((call) => call.method === 'thread/start');
+  assert.match(threadStart.params.developerInstructions, /IRC_TOOL/);
+  assert.doesNotMatch(threadStart.params.developerInstructions, /chat-only and read-only/);
+  assert.doesNotMatch(threadStart.params.developerInstructions, /read-only session/i);
+  assert.notEqual(threadStart.params.sandbox, 'read-only');
+
+  const turnStart = transport.calls.find((call) => call.method === 'turn/start');
+  assert.notEqual(turnStart.params.sandboxPolicy.type, 'readOnly');
 });
 
 test('serializes generate calls so only one turn consumes notifications at a time', async () => {

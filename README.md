@@ -1,103 +1,90 @@
 # EduardoIRC
 
-Dockerized Ergo IRCd deployment plus the first local IRC agent control-plane
-primitives. Public client access is TLS-only at `irc.eduardosilveira.dev:6697`;
-Docker publishes plaintext `6667` on host loopback only for local development.
+Dockerized Ergo IRCd plus a local IRC multi-agent control plane. Public client
+access is TLS-only at `irc.eduardosilveira.dev:6697`; Docker publishes local
+plaintext IRC on `127.0.0.1:6667` for development and mIRC testing.
 
-## What Is Included
+## Agent Operating Reference
 
-- Ergo IRCd with `ghcr.io/ergochat/ergo:stable`
-- Docker Compose service for the IRC server
-- Certbot Compose profile for Let's Encrypt certificates
-- Persistent host directories for server state, config, certs, and backups
-- Backup, restore, start, and local certificate scripts
-- mIRC helper aliases in `clients/mirc/eduardoirc.mrc`
-- Initial Node control-plane modules under `packages/orchestrator`
+Use this README as the first project context before changing code. Then inspect
+the relevant source and tests named below.
 
-## Layout
+Core rules:
+
+- Keep hand-maintained source, test, and docs files under 200 lines.
+- Add or update tests before behavior changes; run the targeted failing test,
+  implement the smallest slice, then rerun the targeted and wider suite.
+- Keep new global orchestration work in `apps/orchestrator`.
+- Keep reusable TypeScript primitives in `packages/shared`, `packages/db`,
+  `packages/llm`, or `packages/tools`.
+- Touch `packages/orchestrator` only for legacy CommonJS bots, mIRC
+  compatibility, or Codex app-server bridge compatibility.
+- Do not treat `codex-agent` as a managed agent. Managed agents live in the
+  SQLite `agents` table and are started/stopped by the TypeScript supervisor.
+
+Fast context map:
 
 ```text
-compose.yaml                  Docker services
-config/ergo/                  Ergo config and MOTD
-scripts/                      PowerShell operations scripts
-clients/mirc/                 mIRC connection and @orc shortcuts
-db/schema.sql                 Control-plane database schema
-packages/orchestrator/        Tested command and persistence primitives
+apps/orchestrator/              TypeScript global orchestrator and AgentBot
+packages/orchestrator/          Legacy CommonJS codex-agent and BotService
+packages/shared/                Shared ids, permissions, task-event protocol
+packages/db/                    SQLite repositories over db/schema.sql
+packages/tools/                 ToolGateway and allowlisted agent tools
+packages/llm/                   Provider runtime and Codex bridge
+clients/mirc/                   mIRC aliases and operator usage
+docs/architecture.md            Ownership rules and migration target
+docs/superpowers/plans/         Active project roadmaps
 ```
 
-## Setup
+## Runtime Ownership
+
+`packages/orchestrator` is the Legacy CommonJS control plane:
+
+- `codex-agent`: direct Codex app-server IRC bridge for compatibility.
+- `BotService`: command/help/admin facade for agents and tasks.
+- mIRC tests, legacy parsing, and Codex app-server transport.
+
+`apps/orchestrator` is the TypeScript global orchestrator:
+
+- connects as `orchestrator`;
+- owns task flow, ToolGateway routing, and active LLM/Codex brain selection;
+- routes `@orc`, `@orchestrator`, DMs, and managed agent traffic;
+- reconciles running managed agents with the shared `agents` table.
+
+BotService writes agent CRUD changes to SQLite. The orchestrator supervisor
+consumes that table and starts new agents or stops deleted agents after startup
+and after brain turns.
+
+## Local Start
 
 ```powershell
 Copy-Item .env.example .env
-```
-
-```dotenv
-IRC_DOMAIN=irc.eduardosilveira.dev
-ACME_EMAIL=your-real-email@example.com
-TZ=UTC
-```
-
-For production, create `irc.eduardosilveira.dev. A <your-server-ipv4>`. Allow
-inbound `6697/tcp`; allow `80/tcp` only during HTTP-01 certificate work.
-
-## TLS
-
-```powershell
-docker compose --profile certbot run --rm --service-ports certbot certonly --standalone -d irc.eduardosilveira.dev -m your-real-email@example.com --agree-tos --no-eff-email
-```
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\dev-cert.ps1
-```
-
-## Operator Password
-
-Before public launch, replace the example operator password hash in
-`config/ergo/ircd.yaml`, then use `/OPER admin <password>` from IRC.
-
-```powershell
-docker compose run --rm ergo genpasswd
-```
-
-## Start And Stop
-
-```powershell
 docker compose up -d
-docker compose logs -f ergo
-docker compose kill -s HUP ergo
-docker compose down
+powershell -ExecutionPolicy Bypass -File .\scripts\start-codex-agent.ps1
+npm run orchestrator:dev
 ```
 
-## Client Settings
+For a clean live test state:
 
-Use these settings in HexChat, WeeChat, irssi, The Lounge, mIRC, or another IRC
-client:
-
-```text
-Server: irc.eduardosilveira.dev
-Port: 6697
-TLS/SSL: enabled
-Plaintext: disabled
+```powershell
+node scripts/reset-control-plane-state.js data/orchestrator.sqlite
 ```
 
-```text
-/msg NickServ REGISTER <password>
-/msg ChanServ REGISTER #channel
-```
+The reset script clears `agents`, tasks, task events, IRC messages, approvals,
+artifacts, and Codex conversation threads. Stop running control-plane Node
+processes first when you need a strict zero-state restart.
 
-## mIRC Shortcuts
+## mIRC Quick Test
+
+Load the helper:
 
 ```text
 /load -rs C:\Users\duzit\source\irc\clients\mirc\eduardoirc.mrc
 /eduardoirc
-/eduardoirc-lan
-/eduardoirc-public
+/join #control
 ```
 
-`/eduardoirc` uses local plaintext `127.0.0.1:6667`. LAN and public aliases use
-TLS on `6697`.
-
-Control-plane shortcuts send commands to `#control`:
+Useful aliases:
 
 ```text
 /codex-login
@@ -109,74 +96,110 @@ Control-plane shortcuts send commands to `#control`:
 /orc-tasks
 /orc-new Build local IRC control plane
 /orc-agent-create researcher-agent researcher researcher Finds missing context
-/orc-assign TASK-0001 manager-agent
-/orc-join TASK-0001 coder-agent
+/orc-assign TASK-0001 researcher-agent
 /orc-summarize TASK-0001
 /orc-logs TASK-0001
 ```
 
-`/codex-login` asks local `codex app-server` for a ChatGPT OAuth URL. After
-login, use `@codex <message>` in any channel. Direct messages to `codex-agent`
-also work without the `@codex` prefix. Each channel and DM has its own persisted
-Codex thread, and `@orc new "Title"` creates a split channel like `#task-0001`.
-BotService is a services-style facade for task control: `/msg BotService NEW "Title"`
-creates the same task channel, and `/msg BotService HELP` lists available commands.
+Raw commands for a zero-state agent test:
 
-## Control Plane Status
+```text
+/msg BotService HELP
+/msg BotService AGENTS
+/msg BotService CREATE feature-implementer --nick FeatureImpl --role implementer --context "IRC feature work" --strengths irc,typescript,tests --weaknesses design --capacity 1
+/msg BotService AGENTS
+@orchestrator agents
+@orchestrator please create a task to verify agent creation from zero
+```
 
-Implemented:
+`/codex-login` asks the local `codex app-server` for a ChatGPT OAuth URL. After
+login, use `@codex <message>` in a channel. Direct messages to `codex-agent`
+also work without `@codex`. Each channel and DM has its own persisted Codex
+thread, and `@orc new "Title"` creates a split channel like `#task-0001`.
 
-- `@orc` command parsing
-- `@orc agent create ...` command handling
-- `@orc new ...` task creation with split IRC channels
-- BotService `HELP`, `AGENTS`, and `NEW <title>` commands
-- SQLite-backed agent persistence with durable context
-- SQLite-backed Codex thread persistence by channel or DM
-- local `codex app-server` client with login and read-only turns
-- live IRC `codex-agent` channel and direct-message replies
-- task ID and task-channel formatting helpers
-- structured agent message formatting
-- v0 permission policy that blocks execution capabilities
+BotService commands:
+
+```text
+/msg BotService HELP
+/msg BotService AGENTS
+/msg BotService SHOW <id>
+/msg BotService CREATE <id> --nick <nick> --role <role> --context "text"
+/msg BotService UPDATE <id> --role <role> --context <text>
+/msg BotService UPDATE <id> --strengths docs,tests --weaknesses infra --capacity 2
+/msg BotService DELETE <id>
+/msg BotService NEW "Task title"
+```
+
+## Task Protocol
+
+Agents should correlate work with chain and task markers.
+
+Conversation continuity:
+
+```text
+[chain:<id>] answer or follow-up
+```
+
+Task lifecycle lines:
+
+```text
+[task:TASK-0001] [type:ack] acknowledged, starting
+[task:TASK-0001] [type:wip] current step: reading README
+[task:TASK-0001] [type:blocked] need approval to continue
+[task:TASK-0001] [type:result] implemented and verified
+[task:TASK-0001] [type:done] completed
+```
+
+The orchestrator writes structured task lines to `task_events`, persists the raw
+IRC line in `irc_messages`, reflects task status on `tasks`, opens approvals for
+`blocked`, and exposes history through `@orc logs <TASK-0001>`.
+
+## Implemented Status
+
+- Ergo IRCd via Docker Compose.
+- Legacy `codex-agent` and BotService compatibility bots.
+- TypeScript global orchestrator with ToolGateway-backed managed agents.
+- BotService agent CRUD: `HELP`, `AGENTS`, `SHOW`, `CREATE`, `UPDATE`,
+  `DELETE`, plus `NEW <title>`.
+- Managed agent lifecycle reconciliation from the SQLite `agents` table.
+- Agent routing metadata: `strengths`, `weaknesses`, and `capacity`.
+- `@orc new` routes tasks to the best free agent or queues for the best busy
+  agent.
+- Scoped tools: list/read/write workspace files, git status/diff,
+  verification, and agent management.
+- Durable SQLite state for agents, tasks, task events, IRC messages, approvals,
+  and Codex conversation threads.
+- Task channels, task lifecycle protocol, heartbeat checks, approvals, and
+  Kanban commands: `assign`, `review`, `summarize`, `logs`.
 
 Not implemented yet:
 
-- approval workflow
-
-```powershell
-npm test
-```
-
-## Persistence
-
-```text
-config/ergo/          Ergo config and MOTD
-data/ergo/            Ergo database, accounts, channels, runtime state
-certs/letsencrypt/    TLS certificates
-backups/              Backup archives
-db/schema.sql         Control-plane schema
-data/orchestrator.sqlite  Codex thread and task state
-```
-
-The `agents` table includes durable `context` so each agent can keep its role
-and operating notes across restarts. `codex_conversations` maps contexts such as
-`channel:#control`, `channel:#task-0001`, and `dm:esilveira` to Codex thread ids.
-
-## Backup And Restore
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\backup.ps1
-docker compose down
-powershell -ExecutionPolicy Bypass -File .\scripts\restore.ps1 -ArchivePath .\backups\irc-server-YYYYMMDD-HHMMSS.zip
-docker compose up -d
-```
+- Artifact persistence.
+- Durable worker queue.
 
 ## Validation
 
 ```powershell
-docker compose config
-git check-ignore .env certs data backups
-Select-String -Path config\ergo\ircd.yaml -Pattern 'EduardoIRC','irc.eduardosilveira.dev','max-concurrent-connections: 8'
 npm test
+npm run test:ts
+npm run typecheck
+docker compose config --quiet
+```
+
+## Operations
+
+```powershell
+docker compose logs -f ergo
+docker compose kill -s HUP ergo
+docker compose down
+powershell -ExecutionPolicy Bypass -File .\scripts\backup.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\restore.ps1 -ArchivePath .\backups\irc-server-YYYYMMDD-HHMMSS.zip
+```
+
+For production TLS, set `IRC_DOMAIN`, `ACME_EMAIL`, and DNS, then run Certbot:
+
+```powershell
+docker compose --profile certbot run --rm --service-ports certbot certonly --standalone -d irc.eduardosilveira.dev -m your-real-email@example.com --agree-tos --no-eff-email
 ```
 
 ## References

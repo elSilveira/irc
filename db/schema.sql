@@ -4,6 +4,9 @@ CREATE TABLE IF NOT EXISTS agents (
   role TEXT NOT NULL,
   status TEXT NOT NULL,
   context TEXT NOT NULL,
+  strengths TEXT NOT NULL DEFAULT '',
+  weaknesses TEXT NOT NULL DEFAULT '',
+  capacity INTEGER NOT NULL DEFAULT 1,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 

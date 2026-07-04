@@ -7,6 +7,11 @@ test('allows read and agent management capabilities', () => {
   assert.deepEqual(canUseCapability('orchestrator', 'manage_agents'), { ok: true });
 });
 
+test('allows scoped implementation capabilities', () => {
+  assert.deepEqual(canUseCapability('orchestrator', 'workspace_write'), { ok: true });
+  assert.deepEqual(canUseCapability('orchestrator', 'run_verification'), { ok: true });
+});
+
 test('blocks execution capabilities', () => {
   assert.equal(canUseCapability('orchestrator', 'shell').ok, false);
   assert.equal(canUseCapability('orchestrator', 'deploy').ok, false);

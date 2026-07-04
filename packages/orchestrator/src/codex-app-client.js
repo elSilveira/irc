@@ -1,8 +1,11 @@
 const { createCodexRpcTransport } = require('./codex-rpc-transport');
 
 const DEVELOPER_INSTRUCTIONS = [
-  'This IRC integration is chat-only and read-only.',
-  'Do not run shell commands, edit files, use git, browse, deploy, or access secrets.',
+  'This IRC integration uses external IRC_TOOL requests for workspace actions.',
+  'You may edit files through IRC_TOOL write_file when the orchestrator prompt advertises it.',
+  'You may run verification through IRC_TOOL run_verification when the prompt advertises it.',
+  'Do not directly run shell commands, browse, deploy, push git, install packages, or access secrets.',
+  'Emit IRC_TOOL lines only for tools advertised in the current prompt.',
 ].join(' ');
 
 function createCodexAppClient(options = {}) {
@@ -54,7 +57,7 @@ function createCodexAppClient(options = {}) {
     const turn = await transport.request('turn/start', {
       threadId: targetThreadId,
       input: [{ type: 'text', text: prompt }],
-      sandboxPolicy: { type: 'readOnly', networkAccess: false },
+      sandboxPolicy: { type: 'workspaceWrite', networkAccess: false },
     }, timeout);
     const turnId = requireId(turn, 'turnId', 'turn/start');
     const text = await collectTurnText(targetThreadId, turnId);
@@ -64,7 +67,7 @@ function createCodexAppClient(options = {}) {
   async function startThread() {
     const thread = await transport.request('thread/start', {
       cwd,
-      sandbox: 'read-only',
+      sandbox: 'workspace-write',
       approvalPolicy: 'never',
       developerInstructions,
     }, timeout);

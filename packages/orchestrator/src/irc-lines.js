@@ -31,11 +31,19 @@ function formatJoin(channel) {
 }
 
 function formatPrivmsg(target, text) {
-  return line(`PRIVMSG ${target} :${text}`);
+  return safeLine(`PRIVMSG ${target} :`, text);
 }
 
 function line(text) {
   return `${text}\r\n`;
+}
+
+function safeLine(prefix, text) {
+  let body = String(text).replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
+  while (Buffer.byteLength(`${prefix}${body}\r\n`, 'utf8') > 512) {
+    body = body.slice(0, -1);
+  }
+  return `${prefix}${body}\r\n`;
 }
 
 module.exports = {

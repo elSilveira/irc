@@ -1,9 +1,12 @@
 import type { CodexClient } from '@irc/llm';
 import type { ConversationRepository } from '@irc/db';
 import type { ToolGateway } from '@irc/tools';
-import { CodexBrain, CODEX_TOOL_INSTRUCTIONS } from './codex-brain.js';
+import { CodexBrain } from './codex-brain.js';
 import type { Brain } from './brain.js';
 import { IrcClient, nickFromPrefix, type ParsedLine } from './irc.js';
+import { ensureChainRef } from './conversation-chain.js';
+import { buildAgentSystemPrompt, buildAgentTurn } from './agent-turn.js';
+export { buildAgentSystemPrompt, buildAgentTurn } from './agent-turn.js';
 
 export interface AgentBotOptions {
   host: string;
@@ -69,6 +72,42 @@ export class AgentBot {
     return this.irc;
   }
 
+  /** Disconnect the agent from IRC. Idempotent. */
+  stop(): void {
+    if (!this.irc) return;
+    this.irc.quit(`${this.nick} going offline`);
+    console.error(`[agent:${this.nick}] offline`);
+    this.irc = undefined;
+  }
+
+  assignTaskChannel(task: { id: string; title: string; channel: string }): void {
+    if (!this.irc) return;
+    this.irc.join(task.channel);
+    this.irc.privmsg(task.channel, `[task:${task.id}] [type:ack] ${this.nick} assigned: ${task.title}`);
+    this.startTask(task).catch((error) => {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`[agent:${this.nick}] task start error: ${message}`);
+      this.irc?.privmsg(task.channel, `[task:${task.id}] [type:blocked] ${message}`);
+    });
+  }
+
+  private async startTask(task: { id: string; title: string; channel: string }): Promise<void> {
+    const prompt = [
+      `[task:${task.id}] Start this assigned task in ${task.channel}: ${task.title}`,
+      'Read the repo context you need, then report progress with task protocol lines.',
+      'Use IRC_TOOL write_file for code edits and run_verification for checks.',
+      'Do not say you are read-only while IRC_TOOL write_file is available.',
+    ].join('\n');
+    const output = await this.brain.respond(prompt, {
+      contextKey: `agent:${this.nick}:task:${task.id}`,
+      sender: 'orchestrator',
+      channel: task.channel,
+    });
+    for (const chunk of chunkLines(output, 400)) {
+      this.irc?.privmsg(task.channel, chunk);
+    }
+  }
+
   private async handle(line: ParsedLine): Promise<void> {
     if (line.command !== 'PRIVMSG') return;
     const [target, text] = line.params;
@@ -78,27 +117,22 @@ export class AgentBot {
     if (sender.toLowerCase() === this.nick.toLowerCase()) return;
 
     const isDm = target.toLowerCase() === this.nick.toLowerCase();
-    const mention = matchMention(text, this.nick);
-
-    if (!isDm && mention === null) return;
-
-    const prompt = isDm ? text.trim() : text.slice(mention ?? 0).replace(/^[\s:,]+/, '').trim();
-    if (!prompt) return;
-
-    const contextKey = isDm
-      ? `agent:${this.nick}:dm:${sender}`
-      : `agent:${this.nick}:channel:${target}`;
-    const replyTarget = isDm ? sender : target;
+    const turn = buildAgentTurn({ agentNick: this.nick, sender, target, text });
+    if (!turn) return;
 
     try {
-      const output = await this.brain.respond(prompt, { contextKey, sender, channel: isDm ? undefined : target });
-      for (const chunk of chunkLines(output, 400)) {
-        this.irc?.privmsg(replyTarget, chunk);
+      const output = await this.brain.respond(turn.prompt, {
+        contextKey: turn.contextKey,
+        sender,
+        channel: isDm ? undefined : target,
+      });
+      for (const chunk of chunkLines(ensureChainRef(turn.chainRef, output), 400)) {
+        this.irc?.privmsg(turn.replyTarget, chunk);
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       console.error(`[agent:${this.nick}] codex error: ${message}`);
-      this.irc?.privmsg(replyTarget, `(codex error: ${message})`);
+      this.irc?.privmsg(turn.replyTarget, ensureChainRef(turn.chainRef, `(codex error: ${message})`));
     }
   }
 
@@ -106,28 +140,6 @@ export class AgentBot {
     const ctx = truncate(this.options.agent.context, 120);
     return `${this.nick} online — role: ${this.options.agent.role}. ${ctx}`.trim();
   }
-}
-
-export function buildAgentSystemPrompt(agent: AgentBotOptions['agent']): string {
-  return [
-    `You are the IRC agent "${agent.nick}" (id ${agent.id}).`,
-    `Role: ${agent.role}.`,
-    `Operating context: ${agent.context}`,
-    'Stay in character, be concise (a few short IRC lines), and answer the user.',
-    '',
-    CODEX_TOOL_INSTRUCTIONS,
-  ].join('\n');
-}
-
-function matchMention(text: string, nick: string): number | null {
-  const re = new RegExp(`^@?\\s*${escapeRegExp(nick)}\\b`, 'i');
-  const match = text.trim().match(re);
-  if (!match) return null;
-  return text.indexOf(match[0]);
-}
-
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function truncate(value: string, size: number): string {

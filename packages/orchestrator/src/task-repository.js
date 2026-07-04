@@ -5,6 +5,7 @@ const { firstTaskId, nextTaskId, taskChannel } = require('./task-ids');
 
 function createTaskRepository(location) {
   const database = new DatabaseSync(location);
+  database.exec('PRAGMA busy_timeout = 5000');
   database.exec(readSchema());
 
   return {

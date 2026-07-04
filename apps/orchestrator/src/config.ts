@@ -10,6 +10,8 @@ export interface OrchestratorConfig {
   workspace: string;
   providers: ProviderName[];
   useCodex: boolean;
+  heartbeatIntervalMs: number;
+  heartbeatStaleMs: number;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): OrchestratorConfig {
@@ -22,6 +24,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): OrchestratorCo
     workspace: env.ORCHESTRATOR_WORKSPACE ?? process.cwd(),
     providers: parseProviders(env.ORCHESTRATOR_PROVIDERS, ['openai', 'ollama', 'codex']),
     useCodex: parseBool(env.ORCHESTRATOR_USE_CODEX, true),
+    heartbeatIntervalMs: parsePositiveInt(env.ORCHESTRATOR_HEARTBEAT_INTERVAL_MS, 30_000),
+    heartbeatStaleMs: parsePositiveInt(env.ORCHESTRATOR_HEARTBEAT_STALE_MS, 90_000),
   };
 }
 
@@ -45,4 +49,10 @@ function parseProviders(value: string | undefined, fallback: ProviderName[]): Pr
 function parseBool(value: string | undefined, fallback: boolean): boolean {
   if (value === undefined) return fallback;
   return /^(1|true|yes|on)$/i.test(value.trim());
+}
+
+function parsePositiveInt(value: string | undefined, fallback: number): number {
+  if (value === undefined) return fallback;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }

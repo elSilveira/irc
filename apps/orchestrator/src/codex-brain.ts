@@ -15,11 +15,14 @@ export interface CodexBrainOptions {
 const TOOL_LINE = /^IRC_TOOL:\s*(\{.*\})\s*$/;
 
 export const CODEX_TOOL_INSTRUCTIONS = [
-  'You have external read-only workspace tools:',
+  'You have external workspace tools:',
   '  list_files -> input: { path? }',
   '  read_file -> input: { path }',
+  '  write_file -> input: { path, content }',
   '  git_status -> input: {}',
   '  git_diff -> input: { staged? }',
+  '  run_verification -> input: { command }',
+  '    command must be one of: "npm test", "npm run test:ts", "npm run typecheck", "docker compose config --quiet"',
   '',
   'You also have an external tool to manage IRC agents in the control-plane database:',
   '  manage_agents -> input: { action: "list" | "create" | "update", id?, nick?, role?, context? }',
@@ -29,6 +32,9 @@ export const CODEX_TOOL_INSTRUCTIONS = [
   '  IRC_TOOL: {"tool":"read_file","input":{"path":"README.md"}}',
   'The system will reply with TOOL_RESULT and you then give the final answer.',
   'Use read tools when the user asks about repo files, docs, git state, or current implementation.',
+  'For implementation tasks, read the relevant files, update tests first with IRC_TOOL write_file, run verification, then update production files.',
+  'Do not answer that you are read-only when IRC_TOOL write_file is advertised; attempt the tool call and report only actual tool denial.',
+  'Keep hand-written files at or below 200 lines and avoid unrelated refactors.',
   'Use manage_agents when the user asks to create, list, or update agents.',
 ].join('\n');
 
@@ -51,7 +57,7 @@ export class CodexBrain implements Brain {
       conversations: options.conversations,
       workspace: options.workspace,
       systemPrompt: options.systemPrompt ?? DEFAULT_SYSTEM_PROMPT,
-      maxToolIterations: options.maxToolIterations ?? 3,
+      maxToolIterations: options.maxToolIterations ?? 8,
     };
   }
 
@@ -65,7 +71,7 @@ export class CodexBrain implements Brain {
     let activeThread = threadId;
 
     for (let iteration = 0; iteration < this.options.maxToolIterations; iteration++) {
-      const result = await this.options.client.generate({ prompt: currentPrompt, threadId: activeThread });
+      const result = await this.generateTurn(currentPrompt, activeThread);
       activeThread = result.threadId;
       lastText = result.text;
 
@@ -76,7 +82,12 @@ export class CodexBrain implements Brain {
       }
 
       const toolResult = await this.options.gateway.execute(toolCall.tool, toolCall.input);
-      currentPrompt = `You called ${toolCall.tool} with ${JSON.stringify(toolCall.input)}.\nTOOL_RESULT: ${JSON.stringify(toolResult)}\nNow give the final concise answer to the user.`;
+      currentPrompt = [
+        `You called ${toolCall.tool} with ${JSON.stringify(toolCall.input)}.`,
+        `TOOL_RESULT: ${JSON.stringify(toolResult)}`,
+        'If more tool work is needed, emit another IRC_TOOL line and stop.',
+        'Otherwise give the final concise answer to the user.',
+      ].join('\n');
     }
 
     this.persist(context.contextKey, activeThread);
@@ -85,6 +96,15 @@ export class CodexBrain implements Brain {
 
   private persist(contextKey: string, threadId: string | undefined): void {
     if (threadId) this.options.conversations.saveThread(contextKey, threadId);
+  }
+
+  private async generateTurn(prompt: string, threadId: string | undefined): Promise<{ threadId: string; text: string }> {
+    try {
+      return await this.options.client.generate({ prompt, threadId });
+    } catch (error) {
+      if (!threadId || !isMissingThread(error)) throw error;
+      return this.options.client.generate({ prompt });
+    }
   }
 }
 
@@ -115,6 +135,11 @@ function clean(text: string): string {
     .filter((line) => !TOOL_LINE.test(line))
     .join('\n')
     .trim();
+}
+
+function isMissingThread(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /thread not found/i.test(message);
 }
 
 export type { Brain, BrainContext, AgentExecutorLike } from './brain.js';

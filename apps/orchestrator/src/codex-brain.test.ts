@@ -70,6 +70,44 @@ test('CodexBrain runs a read_file tool call then returns the final answer', asyn
   assert.equal(answer, 'README says: local readme content');
 });
 
+test('CodexBrain handles several tool calls before the final answer', async () => {
+  const { gateway, repos, root } = makeGateway();
+  writeFileSync(join(root, 'README.md'), 'context');
+  const client = fakeClient(
+    [
+      'IRC_TOOL: {"tool":"read_file","input":{"path":"README.md"}}',
+      'IRC_TOOL: {"tool":"read_file","input":{"path":"README.md"}}',
+      'IRC_TOOL: {"tool":"read_file","input":{"path":"README.md"}}',
+      'IRC_TOOL: {"tool":"read_file","input":{"path":"README.md"}}',
+      'Implementation verified.',
+    ],
+    [],
+  );
+
+  const brain = new CodexBrain({ client, gateway, conversations: repos.conversations, workspace: root });
+  const answer = await brain.respond('implement a feature', CTX);
+
+  assert.equal(answer, 'Implementation verified.');
+});
+
+test('CodexBrain allows another tool call after a tool result', async () => {
+  const { gateway, repos, root } = makeGateway();
+  writeFileSync(join(root, 'README.md'), 'context');
+  const threads: { prompt: string; threadId: string }[] = [];
+  const client = fakeClient(
+    [
+      'IRC_TOOL: {"tool":"read_file","input":{"path":"README.md"}}',
+      'done',
+    ],
+    threads,
+  );
+
+  const brain = new CodexBrain({ client, gateway, conversations: repos.conversations, workspace: root });
+  await brain.respond('read and continue', CTX);
+
+  assert.match(threads[1]?.prompt ?? '', /emit another IRC_TOOL/);
+});
+
 test('CodexBrain advertises read tools in the prompt', async () => {
   const { gateway, repos } = makeGateway();
   const threads: { prompt: string; threadId: string }[] = [];
@@ -81,6 +119,18 @@ test('CodexBrain advertises read tools in the prompt', async () => {
   assert.match(threads[0]?.prompt ?? '', /read_file/);
   assert.match(threads[0]?.prompt ?? '', /list_files/);
   assert.match(threads[0]?.prompt ?? '', /IRC_TOOL/);
+});
+
+test('CodexBrain tells agents to use write_file instead of claiming read-only', async () => {
+  const { gateway, repos } = makeGateway();
+  const threads: { prompt: string; threadId: string }[] = [];
+  const client = fakeClient(['ok'], threads);
+
+  const brain = new CodexBrain({ client, gateway, conversations: repos.conversations, workspace: '/tmp/ws' });
+  await brain.respond('implement a change', CTX);
+
+  assert.match(threads[0]?.prompt ?? '', /IRC_TOOL write_file/);
+  assert.match(threads[0]?.prompt ?? '', /Do not answer that you are read-only/);
 });
 
 test('CodexBrain returns plain answers directly when no tool call is emitted', async () => {
@@ -106,4 +156,25 @@ test('CodexBrain persists and reuses the codex thread per context', async () => 
 
   // second call must reuse the persisted thread id instead of starting a new one
   assert.equal(threads[1]?.threadId, firstThread);
+});
+
+test('CodexBrain starts a new thread when the persisted thread is missing', async () => {
+  const { gateway, repos } = makeGateway();
+  repos.conversations.saveThread(CTX.contextKey, 'missing-thread');
+  const seen: Array<string | undefined> = [];
+  const client: CodexClient = {
+    configured: true,
+    async generate(input) {
+      seen.push(input.threadId);
+      if (input.threadId === 'missing-thread') throw new Error('thread not found: missing-thread');
+      return { threadId: 'new-thread', text: 'recovered' };
+    },
+  };
+
+  const brain = new CodexBrain({ client, gateway, conversations: repos.conversations, workspace: '/tmp/ws' });
+  const answer = await brain.respond('recover', CTX);
+
+  assert.equal(answer, 'recovered');
+  assert.deepEqual(seen, ['missing-thread', undefined]);
+  assert.equal(repos.conversations.findThread(CTX.contextKey)?.threadId, 'new-thread');
 });

@@ -15,8 +15,10 @@ import {
   ToolGateway,
   listFilesTool,
   readFileTool,
+  writeFileTool,
   gitStatusTool,
   gitDiffTool,
+  runVerificationTool,
   manageAgentsTool,
 } from '@irc/tools';
 import { loadConfig, type OrchestratorConfig } from './config.js';
@@ -59,7 +61,15 @@ function createProvider(name: ProviderName, config: OrchestratorConfig, codexCli
 
 export function buildGateway(config: OrchestratorConfig, repos: Repositories): ToolGateway {
   return new ToolGateway(
-    [listFilesTool, readFileTool, gitStatusTool, gitDiffTool, manageAgentsTool],
+    [
+      listFilesTool,
+      readFileTool,
+      writeFileTool,
+      gitStatusTool,
+      gitDiffTool,
+      runVerificationTool,
+      manageAgentsTool,
+    ],
     { workspaceRoot: config.workspace, agents: repos.agents },
     {
       actor: config.nick,

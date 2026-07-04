@@ -1,28 +1,38 @@
 import { DatabaseSync } from 'node:sqlite';
 import { readSchema } from './schema.js';
-import { createTaskRepository } from './tasks.js';
+import { createTaskRepository, type TaskRepository } from './tasks.js';
 import { createConversationRepository } from './conversations.js';
-import type { Agent, Task, ConversationThread } from './types.js';
+import { createTaskEventRepository, type TaskEventRepository } from './task-events.js';
+import { createApprovalRepository, type ApprovalRepository } from './approvals.js';
+import { createIrcMessageRepository, type IrcMessageRepository } from './messages.js';
+import type { Agent, Task, ConversationThread, TaskEventRecord } from './types.js';
 
 export interface Repositories {
   agents: AgentRepository;
   tasks: TaskRepository;
+  taskEvents: TaskEventRepository;
+  approvals: ApprovalRepository;
+  ircMessages: IrcMessageRepository;
   conversations: ConversationRepository;
   close(): void;
 }
 
 export interface AgentRepository {
-  createAgent(input: { id: string; nick: string; role: string; context: string }): Agent;
+  createAgent(input: AgentInput): Agent;
   findAgent(id: string): Agent | null;
   listAgents(): Agent[];
-  updateAgent(id: string, fields: Partial<Pick<Agent, 'nick' | 'role' | 'status' | 'context'>>): Agent;
+  updateAgent(id: string, fields: Partial<Omit<Agent, 'id'>>): Agent;
   close(): void;
 }
 
-export interface TaskRepository {
-  createTask(title: string): Task;
-  listTasks(): Task[];
-  close(): void;
+export interface AgentInput {
+  id: string;
+  nick: string;
+  role: string;
+  context: string;
+  strengths?: string;
+  weaknesses?: string;
+  capacity?: number;
 }
 
 export interface ConversationRepository {
@@ -33,11 +43,16 @@ export interface ConversationRepository {
 
 export function createRepositories(location: string): Repositories {
   const database = new DatabaseSync(location);
+  database.exec('PRAGMA busy_timeout = 5000');
   database.exec(readSchema());
+  ensureAgentRoutingColumns(database);
 
   return {
     agents: createAgentRepository(database),
     tasks: createTaskRepository(database),
+    taskEvents: createTaskEventRepository(database),
+    approvals: createApprovalRepository(database),
+    ircMessages: createIrcMessageRepository(database),
     conversations: createConversationRepository(database),
     close: () => database.close(),
   };
@@ -45,14 +60,15 @@ export function createRepositories(location: string): Repositories {
 
 export function createAgentRepository(database: DatabaseSync): AgentRepository {
   return {
-    createAgent({ id, nick, role, context }) {
+    createAgent(input) {
+      const { id, nick, role, context } = input;
       const existing = database.prepare('SELECT id FROM agents WHERE id = ?').get(id);
       if (existing) throw new Error(`agent already exists: ${id}`);
 
       database.prepare(`
-        INSERT INTO agents (id, nick, role, status, context)
-        VALUES (?, ?, ?, ?, ?)
-      `).run(id, nick, role, 'idle', context);
+        INSERT INTO agents (id, nick, role, status, context, strengths, weaknesses, capacity)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(id, nick, role, 'idle', context, input.strengths ?? '', input.weaknesses ?? '', input.capacity ?? 1);
 
       return findAgentRow(database, id) ?? throwNotFound(id);
     },
@@ -63,7 +79,7 @@ export function createAgentRepository(database: DatabaseSync): AgentRepository {
 
     listAgents() {
       const rows = database
-        .prepare('SELECT id, nick, role, status, context FROM agents ORDER BY created_at')
+        .prepare(`SELECT ${AGENT_COLUMNS} FROM agents ORDER BY created_at`)
         .all() as unknown as Agent[];
       return rows.map((row) => ({ ...row }));
     },
@@ -75,9 +91,9 @@ export function createAgentRepository(database: DatabaseSync): AgentRepository {
       const next: Agent = { ...current, ...stripUndefined(fields) };
       database.prepare(`
         UPDATE agents
-        SET nick = ?, role = ?, status = ?, context = ?
+        SET nick = ?, role = ?, status = ?, context = ?, strengths = ?, weaknesses = ?, capacity = ?
         WHERE id = ?
-      `).run(next.nick, next.role, next.status, next.context, id);
+      `).run(next.nick, next.role, next.status, next.context, next.strengths, next.weaknesses, next.capacity, id);
 
       return findAgentRow(database, id) ?? throwNotFound(id);
     },
@@ -86,11 +102,21 @@ export function createAgentRepository(database: DatabaseSync): AgentRepository {
   };
 }
 
+const AGENT_COLUMNS = 'id, nick, role, status, context, strengths, weaknesses, capacity';
+
 function findAgentRow(database: DatabaseSync, id: string): Agent | null {
   const row = database
-    .prepare('SELECT id, nick, role, status, context FROM agents WHERE id = ?')
+    .prepare(`SELECT ${AGENT_COLUMNS} FROM agents WHERE id = ?`)
     .get(id) as Agent | undefined;
   return row ? { ...row } : null;
+}
+
+function ensureAgentRoutingColumns(database: DatabaseSync): void {
+  const columns = database.prepare('PRAGMA table_info(agents)').all() as { name: string }[];
+  const names = new Set(columns.map((column) => column.name));
+  if (!names.has('strengths')) database.exec("ALTER TABLE agents ADD COLUMN strengths TEXT NOT NULL DEFAULT ''");
+  if (!names.has('weaknesses')) database.exec("ALTER TABLE agents ADD COLUMN weaknesses TEXT NOT NULL DEFAULT ''");
+  if (!names.has('capacity')) database.exec('ALTER TABLE agents ADD COLUMN capacity INTEGER NOT NULL DEFAULT 1');
 }
 
 function throwNotFound(id: string): never {

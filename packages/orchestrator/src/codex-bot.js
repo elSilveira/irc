@@ -4,7 +4,7 @@ const { mkdirSync } = require('node:fs');
 const { handleBotServ } = require('./botserv-service');
 const { createCodexAppClient } = require('./codex-app-client');
 const { createConversationRepository } = require('./conversation-repository');
-const { parseCommand } = require('./command-parser');
+const { createAgentRepository } = require('./agent-repository');
 const {
   formatJoin,
   formatNick,
@@ -80,7 +80,6 @@ async function handlePrivmsg(socket, options, prefix, target, text) {
   const sender = nickFromPrefix(prefix);
   if (handleBotServMessage(socket, options, sender, target, text)) return;
   if ((options.nick || '').toLowerCase() === (options.botServNick || '').toLowerCase()) return;
-  if (handleOrcCommand(socket, options, target, text)) return;
   const routed = routeCodexMessage({
     botNick: options.nick || config.nick,
     sender,
@@ -122,6 +121,7 @@ function createDefaultServices(options) {
     conversations: options.conversations || createConversationRepository(options.database),
     codex: options.codex || createCodexAppClient({ cwd: process.cwd() }),
     tasks: options.tasks || createTaskRepository(options.database),
+    agents: options.agents || createAgentRepository(options.database),
   };
 }
 
@@ -132,15 +132,6 @@ function ensureDatabaseDirectory(database) {
 
 function nickFromPrefix(prefix) {
   return (prefix || '').split('!')[0];
-}
-
-function handleOrcCommand(socket, options, target, text) {
-  const parsed = parseCommand(text);
-  if (!parsed.ok || parsed.command !== 'new') return false;
-  const task = options.tasks.createTask(parsed.args.join(' '));
-  socket.write(formatJoin(task.channel));
-  socket.write(formatPrivmsg(target, `Created ${task.id} in ${task.channel}.`));
-  return true;
 }
 
 function handleBotServMessage(socket, options, sender, target, text) {

@@ -26,3 +26,11 @@ test('formats basic IRC commands', () => {
   assert.equal(formatJoin('#control'), 'JOIN #control\r\n');
   assert.equal(formatPrivmsg('#control', 'ready'), 'PRIVMSG #control :ready\r\n');
 });
+
+test('formats private messages as one safe IRC line', () => {
+  assert.equal(
+    formatPrivmsg('#control', 'first\r\nsecond\nthird'),
+    'PRIVMSG #control :first second third\r\n',
+  );
+  assert.ok(Buffer.byteLength(formatPrivmsg('#control', 'x'.repeat(600)), 'utf8') <= 512);
+});

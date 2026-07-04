@@ -14,3 +14,16 @@ test('documents Codex app-server IRC workflow', () => {
   assert.match(readme, /BotService/);
   assert.match(readme, /\/msg BotService NEW/);
 });
+
+test('documents orchestrator app and package split', () => {
+  const repoRoot = join(__dirname, '../../..');
+  const readme = readFileSync(join(repoRoot, 'README.md'), 'utf8');
+  const architecture = readFileSync(join(repoRoot, 'docs/architecture.md'), 'utf8');
+
+  for (const doc of [readme, architecture]) {
+    assert.match(doc, /packages\/orchestrator/);
+    assert.match(doc, /apps\/orchestrator/);
+    assert.match(doc, /Legacy CommonJS/i);
+    assert.match(doc, /TypeScript global orchestrator/i);
+  }
+});

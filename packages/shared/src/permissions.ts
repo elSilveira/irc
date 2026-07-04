@@ -1,8 +1,8 @@
 import type { CapabilityResult } from './permissions-types.js';
 
 /**
- * v0 permission policy. The orchestrator can use safe read/coordination tools.
- * Execution-class capabilities stay blocked until the approval runner exists.
+ * v0 permission policy. Agents can use scoped repo tools, but arbitrary shell,
+ * deploy, secrets, and raw filesystem capabilities stay blocked.
  */
 export const ALLOWED_CAPABILITIES = Object.freeze([
   'read_channel',
@@ -18,6 +18,8 @@ export const ALLOWED_CAPABILITIES = Object.freeze([
   'git_status',
   'git_diff',
   'manage_agents',
+  'workspace_write',
+  'run_verification',
 ]);
 
 export const BLOCKED_CAPABILITIES = Object.freeze([

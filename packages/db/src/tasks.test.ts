@@ -31,3 +31,16 @@ test('listTasks returns persisted tasks', () => {
   assert.equal(repos.tasks.listTasks().length, 2);
   repos.close();
 });
+
+test('assignTask can set ready or queued status', () => {
+  const repos = createRepositories(':memory:');
+  const task = repos.tasks.createTask('Route me');
+
+  const ready = repos.tasks.assignTask(task.id, 'feature-agent', 'ready');
+  assert.equal(ready.assignedTo, 'feature-agent');
+  assert.equal(ready.status, 'ready');
+
+  const queued = repos.tasks.assignTask(task.id, 'feature-agent', 'queued');
+  assert.equal(queued.status, 'queued');
+  repos.close();
+});
