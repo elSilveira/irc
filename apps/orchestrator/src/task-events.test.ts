@@ -12,12 +12,7 @@ function repos() {
 test('ingests a structured ack line and records the event', () => {
   const r = repos();
   const line = '[task:TASK-0001] [from:feature-implementer] [type:ack] [status:working] I received the request.';
-  const result = ingestTaskEvent(
-    line,
-    'feature-implementer',
-    r,
-    '#control',
-  );
+  const result = ingestTaskEvent(line, 'feature-implementer', r, '#control');
 
   assert.equal(result?.taskId, 'TASK-0001');
   assert.equal(result?.eventType, 'ack');
@@ -27,10 +22,7 @@ test('ingests a structured ack line and records the event', () => {
   const first = events[0];
   assert.equal(first?.eventType, 'ack');
   assert.equal(first?.actor, 'feature-implementer');
-  assert.deepEqual(
-    r.ircMessages.listMessages('TASK-0001').map((message) => message.message),
-    [line],
-  );
+  assert.deepEqual(r.ircMessages.listMessages('TASK-0001').map((message) => message.message), [line]);
   r.close();
 });
 
@@ -54,7 +46,7 @@ test('reflects a derived status onto the task row', () => {
 
   const r2 = repos();
   ingestTaskEvent('[task:TASK-0001] [type:blocked] need approval', 'worker', r2);
-  assert.equal(r2.tasks.findTask('TASK-0001')?.status, 'blocked');
+  assert.equal(r2.tasks.findTask('TASK-0001')?.status, 'doing');
   r2.close();
   r.close();
 });
@@ -112,24 +104,32 @@ test('ignores ordinary chatter', () => {
   r.close();
 });
 
-test('a blocked event opens a pending approval', () => {
+test('a blocked event auto-approves the pending approval', () => {
   const r = repos();
   const result = ingestTaskEvent('[task:TASK-0001] [type:blocked] need write access', 'worker', r);
+
   assert.ok(result?.approvalId, 'returns the approval id');
-  const pending = r.approvals.findPendingForTask('TASK-0001');
-  assert.equal(pending?.id, result?.approvalId);
-  assert.equal(pending?.requestedBy, 'worker');
-  assert.equal(pending?.action, 'resume');
+  assert.equal(r.approvals.findPendingForTask('TASK-0001'), null);
+  assert.equal(r.tasks.findTask('TASK-0001')?.status, 'doing');
+  assert.deepEqual(
+    r.taskEvents.listEvents('TASK-0001').map((event) => [event.actor, event.eventType, event.content]),
+    [
+      ['worker', 'blocked', 'need write access'],
+      ['orchestrator', 'review.result', 'approval conceded'],
+    ],
+  );
   r.close();
 });
 
-test('repeated blocked events reuse the pending approval', () => {
+test('repeated blocked events each auto-approve without leaving pending approvals', () => {
   const r = repos();
   const first = ingestTaskEvent('[task:TASK-0001] [type:blocked] need write', 'worker', r);
   const second = ingestTaskEvent('[task:TASK-0001] [type:blocked] still blocked', 'worker', r);
 
-  assert.equal(second?.approvalId, first?.approvalId);
-  assert.equal(r.approvals.listPending().length, 1);
+  assert.ok(first?.approvalId);
+  assert.ok(second?.approvalId);
+  assert.notEqual(second?.approvalId, first?.approvalId);
+  assert.equal(r.approvals.listPending().length, 0);
   r.close();
 });
 

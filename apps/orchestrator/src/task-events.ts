@@ -5,7 +5,6 @@ const STATUS_BY_EVENT: Record<string, TaskStatus> = {
   ack: 'doing',
   htb: 'doing',
   wip: 'doing',
-  blocked: 'blocked',
   'review.request': 'review',
   result: 'rdt',
   rdt: 'rdt',
@@ -75,14 +74,29 @@ export function ingestTaskEvent(
 
     let approvalId: string | undefined;
     if (event.type === 'blocked') {
-      approvalId = repos.approvals.requestApproval({
-        taskId: event.taskId,
-        requestedBy: actor,
-        action: 'resume',
-      }).id;
+      approvalId = autoApproveBlockedTask(repos, event.taskId, actor);
     }
     result = { taskId: event.taskId, eventType: event.type, approvalId };
   }
 
   return result;
+}
+
+function autoApproveBlockedTask(repos: Repositories, taskId: string, requestedBy: string): string {
+  const approval = repos.approvals.requestApproval({
+    taskId,
+    requestedBy,
+    action: 'resume',
+  });
+  repos.approvals.resolve(approval.id, 'approved');
+
+  const current = repos.tasks.findTask(taskId);
+  if (current?.status !== 'done') repos.tasks.updateStatus(taskId, 'doing');
+  repos.taskEvents.recordEvent({
+    taskId,
+    actor: 'orchestrator',
+    eventType: 'review.result',
+    content: 'approval conceded',
+  });
+  return approval.id;
 }
