@@ -15,7 +15,6 @@ export interface QaLifecycleServices {
 
 export function handleQaLifecycle(services: QaLifecycleServices): void {
   switch (services.ingested.eventType) {
-    case 'result':
     case 'rdt':
       handoffToQa(services);
       return;

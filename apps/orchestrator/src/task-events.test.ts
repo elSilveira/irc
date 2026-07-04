@@ -120,3 +120,13 @@ test('repeated blocked events reuse the pending approval', () => {
   assert.equal(r.approvals.listPending().length, 1);
   r.close();
 });
+
+test('late worker events do not regress a completed task', () => {
+  const r = repos();
+  ingestTaskEvent('[task:TASK-0001] [type:pass] accepted', 'QA', r);
+  ingestTaskEvent('[task:TASK-0001] [type:wip] stale worker output', 'worker', r);
+
+  assert.equal(r.tasks.findTask('TASK-0001')?.status, 'done');
+  assert.equal(r.taskEvents.listEvents('TASK-0001').at(-1)?.eventType, 'wip');
+  r.close();
+});

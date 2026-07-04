@@ -68,7 +68,8 @@ export function ingestTaskEvent(
     });
 
     const next = STATUS_BY_EVENT[event.type];
-    if (next) repos.tasks.updateStatus(event.taskId, next);
+    const current = repos.tasks.findTask(event.taskId);
+    if (next && current?.status !== 'done') repos.tasks.updateStatus(event.taskId, next);
 
     let approvalId: string | undefined;
     if (event.type === 'blocked') {

@@ -63,6 +63,28 @@ test('rdt handoff creates QA agent and assigns it to the task channel', () => {
   s.repos.close();
 });
 
+test('result alone does not start QA before rdt', () => {
+  const s = setup();
+  s.repos.agents.createAgent({
+    id: 'qa',
+    nick: 'QA',
+    role: 'qa',
+    context: 'validates work',
+  });
+
+  handleQaLifecycle({
+    ingested: { taskId: s.task.id, eventType: 'result' },
+    repos: s.repos,
+    supervisor: s.supervisor,
+    irc: s.irc,
+  });
+
+  assert.equal(s.assigned.length, 0);
+  assert.equal(s.repos.tasks.findTask(s.task.id)?.assignedTo, 'feature-implementer');
+  s.repos.close();
+});
+
+
 test('rdt handoff requires an existing dedicated QA agent', () => {
   const s = setup();
 
