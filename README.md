@@ -149,14 +149,17 @@ Task lifecycle lines:
 ```text
 [task:TASK-0001] [type:ack] acknowledged, starting
 [task:TASK-0001] [type:wip] current step: reading README
+[task:TASK-0001] [type:htb] still working
 [task:TASK-0001] [type:blocked] need approval to continue
 [task:TASK-0001] [type:result] implemented and verified
-[task:TASK-0001] [type:done] completed
+[task:TASK-0001] [type:rdt] ready for QA
+[task:TASK-0001] [type:pass] QA accepted the result
 ```
 
 The orchestrator writes structured task lines to `task_events`, persists the raw
 IRC line in `irc_messages`, reflects task status on `tasks`, opens approvals for
-`blocked`, and exposes history through `@orc logs <TASK-0001>`.
+`blocked`, hands `rdt` to QA, loops `not.pass` back to the implementer, and
+exposes history through `@orc logs <TASK-0001>`.
 
 ## Implemented Status
 
@@ -175,11 +178,21 @@ IRC line in `irc_messages`, reflects task status on `tasks`, opens approvals for
   and Codex conversation threads.
 - Task channels, task lifecycle protocol, heartbeat checks, approvals, and
   Kanban commands: `assign`, `review`, `summarize`, `logs`.
+- Agent-side `wip still working` heartbeats while long Codex turns run.
+- Stale-task recovery that reassigns active work to the current agent.
+- QA lifecycle: implementation `rdt` triggers QA, QA `pass` closes the task,
+  and QA `not.pass` sends concrete feedback back to the implementer.
+- mIRC `/orc-skills` modal with editable skill and detail fields for task
+  creation.
 
 Not implemented yet:
 
-- Artifact persistence.
+- Artifact persistence beyond the current schema placeholder.
 - Durable worker queue.
+- Rich skill-pack CRUD beyond current BotService guidance and static packs.
+
+For fuller project status and known gaps, see `docs/status.md`. For a complete
+project explanation, see `docs/project-overview.md`.
 
 ## Validation
 

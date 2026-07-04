@@ -32,6 +32,9 @@ function makeFakeFactory(): { factory: BotFactory; bots: Map<string, FakeBot> } 
       assignTaskChannel(task) {
         this.assigned.push(task.channel);
       },
+      resumeTaskChannel(task) {
+        this.assigned.push(`resume:${task.channel}`);
+      },
     };
     bots.set(bot.nick.toLowerCase(), bot);
     return bot;

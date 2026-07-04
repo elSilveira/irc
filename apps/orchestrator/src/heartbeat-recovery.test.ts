@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createRepositories } from '@irc/db';
 import { recoverStaleTasks } from './heartbeat-recovery.js';
 
-test('recoverStaleTasks reassigns stale doing work to the current agent', () => {
+test('recoverStaleTasks resumes stale doing work without a new assignment ack', () => {
   const repos = createRepositories(':memory:');
   repos.agents.createAgent({
     id: 'feature-implementer',
@@ -14,14 +14,14 @@ test('recoverStaleTasks reassigns stale doing work to the current agent', () => 
   const task = repos.tasks.createTask('Keep working');
   repos.tasks.assignTask(task.id, 'feature-implementer', 'doing');
 
-  const assigned: string[] = [];
+  const resumed: string[] = [];
   const messages: string[] = [];
   recoverStaleTasks({
     repos,
     stale: [{ taskId: task.id, reason: 'stale_wip' }],
     supervisor: {
-      assignTaskChannel: (nick, resumed) => {
-        assigned.push(`${nick}:${resumed.id}:${resumed.title}`);
+      resumeTaskChannel: (nick, task, reason) => {
+        resumed.push(`${nick}:${task.id}:${reason}:${task.title}`);
         return true;
       },
     },
@@ -29,15 +29,13 @@ test('recoverStaleTasks reassigns stale doing work to the current agent', () => 
     logsChannel: '#logs',
   });
 
-  assert.match(assigned[0] ?? '', /^FeatureImpl:TASK-0001:/);
-  assert.match(assigned[0] ?? '', /Resume this stale task/);
-  assert.match(assigned[0] ?? '', /Keep working/);
+  assert.equal(resumed[0], 'FeatureImpl:TASK-0001:stale_wip:Keep working');
   assert.equal(repos.tasks.findTask(task.id)?.status, 'doing');
   assert.equal(
     repos.taskEvents.listEvents(task.id).some((event) => event.actor === 'orchestrator' && event.eventType === 'heartbeat.resume'),
     true,
   );
-  assert.equal(messages.some((message) => /stale \(stale_wip\); resuming FeatureImpl/.test(message)), true);
+  assert.equal(messages.some((message) => /stale \(stale_wip\); htb resume FeatureImpl/.test(message)), true);
   repos.close();
 });
 
@@ -50,7 +48,7 @@ test('recoverStaleTasks reports stale work without an assigned agent', () => {
   recoverStaleTasks({
     repos,
     stale: [{ taskId: task.id, reason: 'no_heartbeat' }],
-    supervisor: { assignTaskChannel: () => true },
+    supervisor: { resumeTaskChannel: () => true },
     irc: { privmsg: (target, text) => messages.push(`${target}:${text}`) },
     logsChannel: '#logs',
   });

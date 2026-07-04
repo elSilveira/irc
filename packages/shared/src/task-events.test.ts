@@ -94,6 +94,7 @@ test('formatTaskEvent drops the body when empty', () => {
 
 test('isTaskEventType guards the known event set', () => {
   assert.equal(isTaskEventType('ack'), true);
+  assert.equal(isTaskEventType('htb'), true);
   assert.equal(isTaskEventType('context.request'), true);
   assert.equal(isTaskEventType('rdt'), true);
   assert.equal(isTaskEventType('testing'), true);
@@ -101,7 +102,7 @@ test('isTaskEventType guards the known event set', () => {
   assert.equal(isTaskEventType('pass'), true);
   assert.equal(isTaskEventType('not.pass'), true);
   assert.equal(isTaskEventType('nope'), false);
-  assert.equal(TASK_EVENT_TYPES.length, 15);
+  assert.equal(TASK_EVENT_TYPES.length, 16);
 });
 
 test('isTaskId recognises tracked task ids', () => {

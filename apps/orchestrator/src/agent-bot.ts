@@ -34,6 +34,7 @@ export class AgentBot {
   readonly nick: string;
   private readonly options: AgentBotOptions;
   private readonly brain: Brain;
+  private readonly activeTasks = new Set<string>();
   private irc?: IrcClient;
 
   constructor(options: AgentBotOptions) {
@@ -95,23 +96,35 @@ export class AgentBot {
     });
   }
 
-  private async startTask(task: { id: string; title: string; channel: string }): Promise<void> {
-    const prompt = [
-      `[task:${task.id}] Start this assigned task in ${task.channel}: ${task.title}`,
-      'Read the repo context you need, then report progress with task protocol lines.',
-      'Use IRC_TOOL write_file for code edits and run_verification for checks.',
-      'Do not say you are read-only while IRC_TOOL write_file is available.',
-      'Do not stop after ack; continue until you emit [type:wip], [type:result], and [type:rdt].',
-      'Use [type:blocked] only when a human decision is required.',
-    ].join('\n');
+  resumeTaskChannel(task: { id: string; title: string; channel: string }, reason: string): void {
+    if (!this.irc) return;
+    this.irc.join(task.channel);
+    if (this.activeTasks.has(task.id)) {
+      this.irc.privmsg(task.channel, `[task:${task.id}] [type:htb] active task still running after ${reason}`);
+      return;
+    }
+    this.irc.privmsg(task.channel, `[task:${task.id}] [type:htb] resuming after ${reason}`);
+    this.startTask(task, 'resume').catch((error) => {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`[agent:${this.nick}] task resume error: ${message}`);
+      this.irc?.privmsg(task.channel, `[task:${task.id}] [type:blocked] ${message}`);
+    });
+  }
+
+  private async startTask(task: { id: string; title: string; channel: string }, mode: 'start' | 'resume' = 'start'): Promise<void> {
+    this.activeTasks.add(task.id);
+    const prompt = buildTaskPrompt(task, mode);
     const heartbeat = setInterval(() => {
-      this.irc?.privmsg(task.channel, `[task:${task.id}] [type:wip] still working`);
+      this.irc?.privmsg(task.channel, `[task:${task.id}] [type:htb] still working`);
     }, this.options.taskHeartbeatMs ?? 25_000);
     const output = await this.brain.respond(prompt, {
       contextKey: `agent:${this.nick}:task:${task.id}`,
       sender: 'orchestrator',
       channel: task.channel,
-    }).finally(() => clearInterval(heartbeat));
+    }).finally(() => {
+      clearInterval(heartbeat);
+      this.activeTasks.delete(task.id);
+    });
     for (const chunk of outgoingLines(ensureTaskProtocolOutput(task.id, output), 400)) {
       this.irc?.privmsg(task.channel, chunk);
     }
@@ -149,6 +162,20 @@ export class AgentBot {
     const ctx = truncate(this.options.agent.context, 120);
     return `${this.nick} online — role: ${this.options.agent.role}. ${ctx}`.trim();
   }
+}
+
+function buildTaskPrompt(task: { id: string; title: string; channel: string }, mode: 'start' | 'resume'): string {
+  const continueInstruction = mode === 'resume'
+    ? 'Do not emit another assignment line; continue with [type:htb] or [type:wip], then [type:result] and [type:rdt].'
+    : 'Do not stop after ack; continue until you emit [type:wip], [type:result], and [type:rdt].';
+  return [
+    `[task:${task.id}] ${mode === 'resume' ? 'Resume' : 'Start'} this assigned task in ${task.channel}: ${task.title}`,
+    'Read the repo context you need, then report progress with task protocol lines.',
+    'Use IRC_TOOL write_file for code edits and run_verification for checks.',
+    'Do not say you are read-only while IRC_TOOL write_file is available.',
+    continueInstruction,
+    'Use [type:blocked] only when a human decision is required.',
+  ].join('\n');
 }
 
 function truncate(value: string, size: number): string {

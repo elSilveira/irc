@@ -44,13 +44,25 @@ test('uses the IRC sender when the line omits [from:]', () => {
 
 test('reflects a derived status onto the task row', () => {
   const r = repos();
-  ingestTaskEvent('[task:TASK-0001] [type:result] shipped', 'worker', r);
-  assert.equal(r.tasks.findTask('TASK-0001')?.status, 'rdt');
+  ingestTaskEvent('[task:TASK-0001] [type:htb] still working', 'worker', r);
+  assert.equal(r.tasks.findTask('TASK-0001')?.status, 'doing');
+
+  const r3 = repos();
+  ingestTaskEvent('[task:TASK-0001] [type:result] shipped', 'worker', r3);
+  assert.equal(r3.tasks.findTask('TASK-0001')?.status, 'rdt');
+  r3.close();
 
   const r2 = repos();
   ingestTaskEvent('[task:TASK-0001] [type:blocked] need approval', 'worker', r2);
   assert.equal(r2.tasks.findTask('TASK-0001')?.status, 'blocked');
   r2.close();
+  r.close();
+});
+
+test('legacy wip still marks the task doing', () => {
+  const r = repos();
+  ingestTaskEvent('[task:TASK-0001] [type:wip] still working', 'worker', r);
+  assert.equal(r.tasks.findTask('TASK-0001')?.status, 'doing');
   r.close();
 });
 

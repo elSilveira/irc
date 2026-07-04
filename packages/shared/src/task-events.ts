@@ -2,6 +2,7 @@ import { TASK_ID_PREFIX } from './ids.js';
 
 export type TaskEventType =
   | 'ack'
+  | 'htb'
   | 'wip'
   | 'context.request'
   | 'context.result'
@@ -19,6 +20,7 @@ export type TaskEventType =
 
 export const TASK_EVENT_TYPES: readonly TaskEventType[] = [
   'ack',
+  'htb',
   'wip',
   'context.request',
   'context.result',

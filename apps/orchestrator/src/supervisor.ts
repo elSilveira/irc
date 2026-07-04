@@ -20,6 +20,7 @@ export interface AgentHandle {
   start(): void;
   stop(): void;
   assignTaskChannel(task: { id: string; title: string; channel: string }): void;
+  resumeTaskChannel(task: { id: string; title: string; channel: string }, reason: string): void;
 }
 
 export type BotFactory = (options: AgentBotOptions) => AgentHandle;
@@ -103,6 +104,13 @@ export class AgentSupervisor {
     const bot = this.bots.get(nick.toLowerCase());
     if (!bot) return false;
     bot.assignTaskChannel(task);
+    return true;
+  }
+
+  resumeTaskChannel(nick: string, task: { id: string; title: string; channel: string }, reason: string): boolean {
+    const bot = this.bots.get(nick.toLowerCase());
+    if (!bot) return false;
+    bot.resumeTaskChannel(task, reason);
     return true;
   }
 

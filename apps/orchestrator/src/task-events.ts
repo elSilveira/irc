@@ -3,6 +3,7 @@ import type { Repositories } from '@irc/db';
 
 const STATUS_BY_EVENT: Record<string, TaskStatus> = {
   ack: 'doing',
+  htb: 'doing',
   wip: 'doing',
   blocked: 'blocked',
   'review.request': 'review',
@@ -26,6 +27,7 @@ export const TASK_PROTOCOL_INSTRUCTIONS = [
   'Task lifecycle protocol — when you are given a task id (TASK-NNNN), report',
   'progress on its own line using this exact format, in addition to your reply:',
   '  [task:TASK-0001] [type:ack] acknowledged, starting',
+  '  [task:TASK-0001] [type:htb] still working',
   '  [task:TASK-0001] [type:wip] current step: <what you are doing>',
   '  [task:TASK-0001] [type:blocked] <reason>',
   '  [task:TASK-0001] [type:result] <what you produced>',
