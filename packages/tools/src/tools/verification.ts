@@ -7,9 +7,9 @@ const MAX_OUTPUT = 32_000;
 const TIMEOUT_MS = 120_000;
 
 const ALLOWLIST = new Map<string, { file: string; args: string[] }>([
-  ['npm test', { file: npmFile(), args: ['test'] }],
-  ['npm run test:ts', { file: npmFile(), args: ['run', 'test:ts'] }],
-  ['npm run typecheck', { file: npmFile(), args: ['run', 'typecheck'] }],
+  ['npm test', npmCommand(['test'])],
+  ['npm run test:ts', npmCommand(['run', 'test:ts'])],
+  ['npm run typecheck', npmCommand(['run', 'typecheck'])],
   ['docker compose config --quiet', { file: 'docker', args: ['compose', 'config', '--quiet'] }],
 ]);
 
@@ -49,8 +49,9 @@ function readString(input: unknown, field: string): string | undefined {
   return typeof value === 'string' ? value : undefined;
 }
 
-function npmFile(): string {
-  return process.platform === 'win32' ? 'npm.cmd' : 'npm';
+export function npmCommand(args: string[], platform = process.platform): { file: string; args: string[] } {
+  if (platform !== 'win32') return { file: 'npm', args };
+  return { file: process.env.ComSpec || 'cmd.exe', args: ['/d', '/s', '/c', 'npm', ...args] };
 }
 
 function ok(command: string, stdout: string, stderr: string): ToolResult {

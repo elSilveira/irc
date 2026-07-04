@@ -19,6 +19,7 @@ test('agent prompt includes role context and repo tools', () => {
   assert.match(prompt, /IRC_TOOL/);
   assert.match(prompt, /Task lifecycle protocol/);
   assert.match(prompt, /\[type:ack\]/);
+  assert.match(prompt, /\[type:rdt\]/);
 });
 
 test('buildAgentTurn keeps channel replies on the referenced chain', () => {
@@ -121,4 +122,67 @@ test('assignTaskChannel reports agent work output in the task channel', async ()
   await new Promise((resolve) => setImmediate(resolve));
 
   assert.ok(calls.includes('msg:#task-0007:[task:TASK-0007] [type:wip] started'));
+});
+
+test('assignTaskChannel sends each task protocol marker as its own message', async () => {
+  const bot = new AgentBot({
+    host: '127.0.0.1',
+    port: 6667,
+    agent: { id: 'feature', nick: 'FeatureImpl', role: 'implementer', context: 'implements code' },
+    channels: ['#agents'],
+    codex: { configured: false, generate: async () => ({ text: '', threadId: '' }) },
+    conversations: {} as never,
+    gateway: {} as never,
+    workspace: '.',
+    brain: {
+      async respond() {
+        return [
+          '[task:TASK-0007] [type:ack] acknowledged, starting',
+          '[task:TASK-0007] [type:result] created file',
+          '[task:TASK-0007] [type:rdt] ready for QA',
+        ].join(' ');
+      },
+    },
+  });
+  const calls: string[] = [];
+  (bot as unknown as { irc: { join: (channel: string) => void; privmsg: (target: string, text: string) => void } }).irc = {
+    join: (channel) => calls.push(`join:${channel}`),
+    privmsg: (target, text) => calls.push(`msg:${target}:${text}`),
+  };
+
+  bot.assignTaskChannel({ id: 'TASK-0007', title: 'Live task', channel: '#task-0007' });
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.ok(calls.includes('msg:#task-0007:[task:TASK-0007] [type:ack] acknowledged, starting'));
+  assert.ok(calls.includes('msg:#task-0007:[task:TASK-0007] [type:result] created file'));
+  assert.ok(calls.includes('msg:#task-0007:[task:TASK-0007] [type:rdt] ready for QA'));
+});
+
+test('assignTaskChannel preserves agent response line boundaries', async () => {
+  const bot = new AgentBot({
+    host: '127.0.0.1',
+    port: 6667,
+    agent: { id: 'feature', nick: 'FeatureImpl', role: 'implementer', context: 'implements code' },
+    channels: ['#agents'],
+    codex: { configured: false, generate: async () => ({ text: '', threadId: '' }) },
+    conversations: {} as never,
+    gateway: {} as never,
+    workspace: '.',
+    brain: {
+      async respond() {
+        return 'first response line\nsecond response line';
+      },
+    },
+  });
+  const calls: string[] = [];
+  (bot as unknown as { irc: { join: (channel: string) => void; privmsg: (target: string, text: string) => void } }).irc = {
+    join: (channel) => calls.push(`join:${channel}`),
+    privmsg: (target, text) => calls.push(`msg:${target}:${text}`),
+  };
+
+  bot.assignTaskChannel({ id: 'TASK-0007', title: 'Live task', channel: '#task-0007' });
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.ok(calls.includes('msg:#task-0007:first response line'));
+  assert.ok(calls.includes('msg:#task-0007:second response line'));
 });

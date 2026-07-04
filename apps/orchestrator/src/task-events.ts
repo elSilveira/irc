@@ -6,7 +6,12 @@ const STATUS_BY_EVENT: Record<string, TaskStatus> = {
   wip: 'doing',
   blocked: 'blocked',
   'review.request': 'review',
-  result: 'review',
+  result: 'rdt',
+  rdt: 'rdt',
+  testing: 'testing',
+  tested: 'tested',
+  pass: 'done',
+  'not.pass': 'ready',
   done: 'done',
   failed: 'failed',
 };
@@ -24,8 +29,8 @@ export const TASK_PROTOCOL_INSTRUCTIONS = [
   '  [task:TASK-0001] [type:wip] current step: <what you are doing>',
   '  [task:TASK-0001] [type:blocked] <reason>',
   '  [task:TASK-0001] [type:result] <what you produced>',
-  '  [task:TASK-0001] [type:done] completed',
-  'Send ack right away, then wip while working, then result and done. If stuck,',
+  '  [task:TASK-0001] [type:rdt] ready for QA',
+  'Send ack right away, then wip while working, then result and rdt. If stuck,',
   'send blocked with the reason. Keep each line self-contained.',
 ].join('\n');
 

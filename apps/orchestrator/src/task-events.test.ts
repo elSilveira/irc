@@ -44,14 +44,30 @@ test('uses the IRC sender when the line omits [from:]', () => {
 
 test('reflects a derived status onto the task row', () => {
   const r = repos();
-  ingestTaskEvent('[task:TASK-0001] [type:done] shipped', 'worker', r);
-  assert.equal(r.tasks.findTask('TASK-0001')?.status, 'done');
+  ingestTaskEvent('[task:TASK-0001] [type:result] shipped', 'worker', r);
+  assert.equal(r.tasks.findTask('TASK-0001')?.status, 'rdt');
 
   const r2 = repos();
   ingestTaskEvent('[task:TASK-0001] [type:blocked] need approval', 'worker', r2);
   assert.equal(r2.tasks.findTask('TASK-0001')?.status, 'blocked');
   r2.close();
   r.close();
+});
+
+test('reflects QA lifecycle statuses onto the task row', () => {
+  const r = repos();
+  ingestTaskEvent('[task:TASK-0001] [type:testing] checking result', 'QA', r);
+  assert.equal(r.tasks.findTask('TASK-0001')?.status, 'testing');
+  ingestTaskEvent('[task:TASK-0001] [type:tested] result checked', 'QA', r);
+  assert.equal(r.tasks.findTask('TASK-0001')?.status, 'tested');
+  ingestTaskEvent('[task:TASK-0001] [type:pass] accepted', 'QA', r);
+  assert.equal(r.tasks.findTask('TASK-0001')?.status, 'done');
+  r.close();
+
+  const r2 = repos();
+  ingestTaskEvent('[task:TASK-0001] [type:not.pass] missing test', 'QA', r2);
+  assert.equal(r2.tasks.findTask('TASK-0001')?.status, 'ready');
+  r2.close();
 });
 
 test('ingests collapsed task markers and applies the final status', () => {

@@ -14,6 +14,7 @@ import { loadConfig } from './config.js';
 import { acquireRuntimeGuardian } from './runtime-guardian.js';
 import { selectBrain } from './brain-select.js';
 import { reconcileManagedAgents } from './agent-reconcile.js';
+import { handleQaLifecycle } from './qa-lifecycle.js';
 
 export async function startOrchestrator(): Promise<IrcClient> {
   const config = loadConfig();
@@ -100,6 +101,7 @@ async function handlePrivmsg(
 
   const ingested = ingestTaskEvent(text, sender, repos, target);
   if (ingested) {
+    handleQaLifecycle({ ingested, repos, supervisor, irc });
     if (ingested.approvalId) {
       irc.privmsg(target, `${ingested.taskId} blocked; waiting for approval. Use @orc approve ${ingested.taskId}.`);
     }

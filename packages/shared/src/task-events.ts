@@ -9,6 +9,11 @@ export type TaskEventType =
   | 'review.result'
   | 'blocked'
   | 'result'
+  | 'rdt'
+  | 'testing'
+  | 'tested'
+  | 'pass'
+  | 'not.pass'
   | 'done'
   | 'failed';
 
@@ -21,6 +26,11 @@ export const TASK_EVENT_TYPES: readonly TaskEventType[] = [
   'review.result',
   'blocked',
   'result',
+  'rdt',
+  'testing',
+  'tested',
+  'pass',
+  'not.pass',
   'done',
   'failed',
 ];

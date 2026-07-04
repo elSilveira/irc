@@ -12,7 +12,7 @@ export interface RoutingResult {
   score: number;
 }
 
-const ACTIVE = new Set(['ready', 'doing', 'review']);
+const ACTIVE = new Set(['ready', 'doing', 'review', 'rdt', 'testing', 'tested']);
 
 export function chooseAgentForTask(input: RoutingInput): RoutingResult | null {
   const scored = input.agents

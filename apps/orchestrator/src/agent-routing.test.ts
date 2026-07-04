@@ -38,6 +38,16 @@ test('chooseAgentForTask queues for the best busy agent', () => {
   assert.equal(result?.status, 'queued');
 });
 
+test('chooseAgentForTask treats QA lifecycle statuses as active work', () => {
+  const result = chooseAgentForTask({
+    title: 'Add tests',
+    agents: [{ ...baseAgent, id: 'impl', strengths: 'tests', capacity: 1 }],
+    tasks: [{ id: 'TASK-0001', title: 'QA', status: 'testing', channel: '#task-0001', assignedTo: 'impl' }],
+  });
+
+  assert.equal(result?.status, 'queued');
+});
+
 test('chooseAgentForTask avoids weakness matches when possible', () => {
   const result = chooseAgentForTask({
     title: 'Deploy infrastructure change',

@@ -103,7 +103,7 @@ export class AgentBot {
       sender: 'orchestrator',
       channel: task.channel,
     });
-    for (const chunk of chunkLines(output, 400)) {
+    for (const chunk of outgoingLines(output, 400)) {
       this.irc?.privmsg(task.channel, chunk);
     }
   }
@@ -126,7 +126,7 @@ export class AgentBot {
         sender,
         channel: isDm ? undefined : target,
       });
-      for (const chunk of chunkLines(ensureChainRef(turn.chainRef, output), 400)) {
+      for (const chunk of outgoingLines(ensureChainRef(turn.chainRef, output), 400)) {
         this.irc?.privmsg(turn.replyTarget, chunk);
       }
     } catch (error) {
@@ -156,4 +156,19 @@ function chunkLines(text: string, size: number): string[] {
   }
   if (remaining.length > 0) chunks.push(remaining);
   return chunks;
+}
+
+function outgoingLines(text: string, size: number): string[] {
+  return text
+    .split(/\r?\n/)
+    .flatMap(splitTaskProtocolLines)
+    .flatMap((line) => chunkLines(line, size));
+}
+
+function splitTaskProtocolLines(text: string): string[] {
+  const starts = [...text.matchAll(/\[task:[^\]]+\]\s*(?:\[from:[^\]]+\]\s*)?\[type:[^\]]+\]/g)].map(
+    (match) => match.index ?? 0,
+  );
+  if (starts.length <= 1) return [text];
+  return starts.map((start, index) => text.slice(start, starts[index + 1]).trim()).filter(Boolean);
 }

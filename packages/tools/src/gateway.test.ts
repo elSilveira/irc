@@ -12,6 +12,7 @@ import {
   runVerificationTool,
   resolvePath,
   manageAgentsTool,
+  npmCommand,
 } from './index.js';
 
 function makeContext() {
@@ -85,6 +86,12 @@ test('run_verification only runs allowlisted commands', async () => {
   assert.equal(denied.ok, false);
   assert.match(denied.error ?? '', /not allowlisted/);
   ctx.close();
+});
+
+test('run_verification launches npm through cmd on Windows', () => {
+  const command = npmCommand(['run', 'typecheck'], 'win32');
+  assert.match(command.file, /cmd(?:\.exe)?$/i);
+  assert.deepEqual(command.args, ['/d', '/s', '/c', 'npm', 'run', 'typecheck']);
 });
 
 test('resolvePath blocks traversal outside the workspace', () => {
