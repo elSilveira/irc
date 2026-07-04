@@ -111,7 +111,7 @@ function reply(services: CommandServices, text: string): void {
 }
 
 function requestQaAgent(services: CommandServices): void {
-  services.irc.privmsg('codex-agent', 'Please create managed QA agent `qa` nick `QA` for task validation.');
+  services.irc.privmsg('helper', 'Please create managed QA agent `qa` nick `QA` for task validation.');
 }
 
 function notifyAgent(

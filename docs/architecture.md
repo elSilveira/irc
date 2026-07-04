@@ -8,7 +8,7 @@ purpose, but they have different responsibilities.
 `packages/orchestrator` is the Legacy CommonJS control plane. It contains the
 stable IRC bots and compatibility code that existed before the TypeScript app:
 
-- `codex-agent`, the direct Codex app-server IRC bridge (legacy compatibility
+- `helper`, the direct Codex app-server IRC bridge (user assistance
   only; it is not a managed agent)
 - `BotService`, the agent CRUD and help facade (`HELP`, `AGENTS`, `SHOW`,
   `CREATE`, `UPDATE`, `DELETE`, `NEW`). It edits the shared `agents` table that
@@ -51,7 +51,7 @@ Shared TypeScript code lives under `packages/shared`, `packages/db`,
   BotService edits (creates or deletes) take effect live without a restart.
 - The shared `agents` table is the hand-off contract between the two: BotService
   is the writer of record, the supervisor is the consumer.
-- `codex-agent` is a legacy direct chat bridge, not a managed agent; it has no
+- `helper` is a legacy direct chat bridge, not a managed agent; it has no
   row in the `agents` table and is never spawned or stopped by the supervisor.
 - Structured task lines (`[task:...]`) are ingested by the orchestrator, written
   to `task_events`, reflected onto the task row, and persisted raw in
@@ -61,7 +61,7 @@ Shared TypeScript code lives under `packages/shared`, `packages/db`,
 
 ```text
 Ergo IRCd
-  -> codex-agent (packages/orchestrator, legacy direct bridge)
+  -> helper (packages/orchestrator, legacy direct bridge)
   -> BotService (packages/orchestrator, agent CRUD/help facade) --writes--> agents table
   -> orchestrator (apps/orchestrator, TypeScript global orchestrator)
        -> supervisor --reconciles--> agents table (start new / stop deleted)

@@ -108,6 +108,26 @@ test('CodexBrain allows another tool call after a tool result', async () => {
   assert.match(threads[1]?.prompt ?? '', /emit another IRC_TOOL/);
 });
 
+test('CodexBrain keeps the original request after tool results', async () => {
+  const { gateway, repos, root } = makeGateway();
+  writeFileSync(join(root, 'README.md'), 'context');
+  const threads: { prompt: string; threadId: string }[] = [];
+  const client = fakeClient(
+    [
+      'IRC_TOOL: {"tool":"read_file","input":{"path":"README.md"}}',
+      '[task:TASK-0002] [type:rdt] ready',
+    ],
+    threads,
+  );
+
+  const brain = new CodexBrain({ client, gateway, conversations: repos.conversations, workspace: root });
+  await brain.respond('[task:TASK-0002] implement the mIRC skills modal', CTX);
+
+  assert.match(threads[1]?.prompt ?? '', /Original request:/);
+  assert.match(threads[1]?.prompt ?? '', /TASK-0002/);
+  assert.match(threads[1]?.prompt ?? '', /mIRC skills modal/);
+});
+
 test('CodexBrain advertises read tools in the prompt', async () => {
   const { gateway, repos } = makeGateway();
   const threads: { prompt: string; threadId: string }[] = [];

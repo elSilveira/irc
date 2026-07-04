@@ -1,7 +1,7 @@
 export const NICKS = {
   orchestrator: 'orchestrator',
   botService: 'BotService',
-  codexAgent: 'codex-agent',
+  codexAgent: 'helper',
 } as const;
 
 export const CHANNELS = {

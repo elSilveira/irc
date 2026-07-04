@@ -80,7 +80,7 @@ test('new ensures dedicated QA before assigning implementer work', () => {
   handleCommand({ name: 'new', args: ['Build feature'] }, c.services);
 
   assert.equal(c.services.repos.agents.findAgent('qa')?.nick, 'QA');
-  assert.equal(c.sent.some((entry) => entry.target === 'codex-agent' && /create.*QA/i.test(entry.text)), true);
+  assert.equal(c.sent.some((entry) => entry.target === 'helper' && /create.*QA/i.test(entry.text)), true);
   assert.equal(c.services.repos.tasks.findTask('TASK-0001')?.assignedTo, 'feature-agent');
   assert.deepEqual(c.assignedChannels, ['FeatureAgent:TASK-0001:#task-0001']);
 });
@@ -117,7 +117,7 @@ test('command errors are reported without throwing', () => {
   assert.match(replies(c).at(-1) ?? '', /ERR new failed: database is locked/);
 });
 
-test('assign sets the assignee, records an event, and DMs the agent', () => {
+test('assign sets the assignee, records an event, and starts the agent channel', () => {
   const c = setup();
   handleCommand({ name: 'new', args: ['Do thing'] }, c.services);
   const result = handleCommand({ name: 'assign', args: ['TASK-0001', 'worker'] }, c.services);
@@ -128,7 +128,8 @@ test('assign sets the assignee, records an event, and DMs the agent', () => {
   assert.equal(c.services.repos.tasks.findTask('TASK-0001')?.status, 'ready');
 
   const dm = c.sent.find((entry) => entry.target === 'worker');
-  assert.match(dm?.text ?? '', /You are assigned TASK-0001/);
+  assert.equal(dm, undefined);
+  assert.deepEqual(c.assignedChannels.at(-1), 'worker:TASK-0001:#task-0001');
   assert.equal(c.services.repos.taskEvents.listEvents('TASK-0001').length, 1);
 });
 

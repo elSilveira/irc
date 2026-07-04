@@ -30,6 +30,8 @@ export function handleQaLifecycle(services: QaLifecycleServices): void {
 function handoffToQa({ ingested, repos, supervisor, irc }: QaLifecycleServices): void {
   const task = repos.tasks.findTask(ingested.taskId);
   if (!task) return;
+  if (task.assignedTo === QA_AGENT.id) return;
+  if (task.status === 'done' || latestActor(repos, task.id, 'rdt') === QA_AGENT.nick) return;
   const qa = repos.agents.findAgent(QA_AGENT.id);
   if (!qa) {
     repos.tasks.updateStatus(task.id, 'rdt');
@@ -41,7 +43,7 @@ function handoffToQa({ ingested, repos, supervisor, irc }: QaLifecycleServices):
   supervisor.assignTaskChannel(qa.nick, {
     id: task.id,
     channel: task.channel,
-    title: qaPrompt(task.title, latestContent(repos, task.id, ['result', 'rdt'])),
+    title: qaPrompt(task.title, implementationResult(repos, task.id)),
   });
 }
 
@@ -61,11 +63,18 @@ function loopToImplementer({ ingested, repos, supervisor, irc }: QaLifecycleServ
     return;
   }
   const feedback = latestContent(repos, task.id, ['not.pass']);
+  const result = implementationResult(repos, task.id);
   repos.tasks.assignTask(task.id, implementer.id, 'ready');
+  repos.taskEvents.recordEvent({
+    taskId: task.id,
+    actor: 'orchestrator',
+    eventType: 'assign',
+    content: `assigned to ${implementer.nick} after QA not.pass`,
+  });
   supervisor.assignTaskChannel(implementer.nick, {
     id: task.id,
     channel: task.channel,
-    title: `${task.title}\nQA feedback: ${feedback}`,
+    title: `${task.title}\nPrevious result: ${result}\nQA feedback: ${feedback}\nFix the QA feedback and return result plus rdt again.`,
   });
 }
 
@@ -73,7 +82,9 @@ function qaPrompt(title: string, result: string): string {
   return [
     `QA validate the initial request: ${title}`,
     `Implementation result/context: ${result}`,
-    'Report [type:testing], [type:tested], then [type:pass] or [type:not.pass].',
+    'Report [type:testing], [type:tested], then exactly one final [type:pass] or [type:not.pass].',
+    'Do not report [type:result] or [type:rdt] from QA.',
+    'If not passing, [type:not.pass] must say exactly what needs to change before retry.',
   ].join('\n');
 }
 
@@ -82,6 +93,17 @@ function latestContent(repos: Repositories, taskId: string, types: string[]): st
     .listEvents(taskId)
     .filter((event) => types.includes(event.eventType))
     .at(-1)?.content ?? '';
+}
+
+function implementationResult(repos: Repositories, taskId: string): string {
+  return latestContent(repos, taskId, ['result']) || latestContent(repos, taskId, ['rdt']);
+}
+
+function latestActor(repos: Repositories, taskId: string, type: string): string {
+  return repos.taskEvents
+    .listEvents(taskId)
+    .filter((event) => event.eventType === type)
+    .at(-1)?.actor ?? '';
 }
 
 function findImplementer(repos: Repositories, taskId: string) {

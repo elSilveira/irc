@@ -87,10 +87,13 @@ function assignTask(services: CommandServices, taskId: string, agent: string): s
     eventType: 'assign',
     content: `assigned to ${agent}`,
   });
-  services.irc.privmsg(
-    agent,
-    `You are assigned ${taskId} (${task.title}) in ${task.channel}. Reply with [task:${taskId}] [type:ack] to start.`,
-  );
+  const started = services.agentSupervisor?.assignTaskChannel(agent, task) ?? false;
+  if (!started) {
+    services.irc.privmsg(
+      agent,
+      `You are assigned ${taskId} (${task.title}) in ${task.channel}. Reply with [task:${taskId}] [type:ack] to start.`,
+    );
+  }
   return `${taskId} assigned to ${agent}; status ready.`;
 }
 

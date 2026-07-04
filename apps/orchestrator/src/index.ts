@@ -15,6 +15,8 @@ import { acquireRuntimeGuardian } from './runtime-guardian.js';
 import { selectBrain } from './brain-select.js';
 import { reconcileManagedAgents } from './agent-reconcile.js';
 import { handleQaLifecycle } from './qa-lifecycle.js';
+import { buildStartupChannels } from './startup-channels.js';
+import { recoverStaleTasks } from './heartbeat-recovery.js';
 
 export async function startOrchestrator(): Promise<IrcClient> {
   const config = loadConfig();
@@ -43,7 +45,8 @@ export async function startOrchestrator(): Promise<IrcClient> {
     reservedNicks: [config.nick],
   });
   const existingAgents = repos.agents.listAgents().map(toSummary);
-  const startup = supervisor.reconcile(existingAgents, ['#agents']);
+  const startupChannels = buildStartupChannels({ configured: config.channels, tasks: repos.tasks.listTasks() });
+  const startup = supervisor.reconcile(existingAgents, startupChannels);
 
   console.error(
     `[orchestrator] brain: ${brain.constructor.name} | providers: ${runtime.configuredProviders.join(', ') || '(none)'} | tools: ${gateway.names().join(', ')} | agents online: ${startup.unchanged + startup.started.length}`,
@@ -55,8 +58,8 @@ export async function startOrchestrator(): Promise<IrcClient> {
     nick: config.nick,
     handlers: {
       onReady: () => {
-        for (const channel of config.channels) irc.join(channel);
-        console.error(`[orchestrator] connected, joined ${config.channels.join(', ')}`);
+        for (const channel of startupChannels) irc.join(channel);
+        console.error(`[orchestrator] connected, joined ${startupChannels.join(', ')}`);
       },
       onLine: (line) => handlePrivmsg(irc, config, repos, brain, supervisor, line),
       onError: (error) => console.error(`[orchestrator] irc error: ${error.message}`),
@@ -66,9 +69,7 @@ export async function startOrchestrator(): Promise<IrcClient> {
   const logsChannel = config.channels.find((c) => c.toLowerCase() === '#logs') ?? config.channels[0] ?? '#control';
   setInterval(() => {
     const stale = findStaleTasks(collectHeartbeats(repos), Date.now(), config.heartbeatStaleMs);
-    for (const task of stale) {
-      irc.privmsg(logsChannel, `[heartbeat] ${task.taskId} stale (${task.reason})`);
-    }
+    recoverStaleTasks({ repos, stale, supervisor, irc, logsChannel });
     if (stale.length) console.error(`[heartbeat] ${stale.length} stale task(s)`);
   }, config.heartbeatIntervalMs);
 

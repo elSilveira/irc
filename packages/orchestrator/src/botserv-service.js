@@ -1,11 +1,12 @@
 const { inferAgentSkills, listAgentSkillPacks, skillPackGuide } = require('./agent-skills');
+const { helpLines } = require('./botserv-help');
 
 function handleBotServ(text, services) {
   const [command, ...args] = tokenize(text);
   const normalized = (command || 'HELP').toUpperCase();
 
   if (normalized === 'HELP') {
-    return response(helpLines());
+    return response(helpLines(args[0]));
   }
 
   if (normalized === 'AGENTS') {
@@ -48,27 +49,12 @@ function handleBotServ(text, services) {
   return response(helpLines());
 }
 
-function helpLines() {
-  return [
-    'BotService',
-    'HELP | AGENTS | SHOW <id> | DELETE <id> | SKILLS',
-    'NEW "title" -> create task channel',
-    'CREATE <id> --nick <nick> --role <role>',
-    '  --context "text"',
-    '  [--strengths a,b] [--weaknesses x] [--capacity n] [--skills a,b]',
-    'SKILLPACK CREATE <id> --skills a,b --match words',
-    'UPDATE <id> [--nick n] [--role r]',
-    '  [--context "text"]',
-    'Codex: @codex <message> or /msg codex-agent <message>',
-  ];
-}
-
 function listAgents(repository) {
   const managed = repository ? repository.listAgents() : [];
   return [
     'Agents',
     ...managed.map(formatAgent),
-    'codex-agent | legacy bridge',
+    'helper | user command bridge',
   ];
 }
 

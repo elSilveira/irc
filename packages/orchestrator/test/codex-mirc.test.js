@@ -18,10 +18,11 @@ test('mirc helper has codex shortcuts', () => {
   assert.match(script, /msg BotService HELP/);
 });
 
-test('mirc docs explain codex-agent commands', () => {
+test('mirc docs explain helper commands', () => {
   const readme = readFileSync(join(repoRoot, 'clients/mirc/README.md'), 'utf8');
 
-  assert.match(readme, /codex-agent/);
+  assert.match(readme, /helper/);
+  assert.doesNotMatch(readme, /direct messages to `codex-agent`/);
   assert.match(readme, /\/codex-status/);
   assert.match(readme, /\/codex-login/);
   assert.match(readme, /direct messages/i);

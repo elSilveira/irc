@@ -16,7 +16,7 @@ test('restarts a channel thread when persisted context is missing', async () => 
   };
 
   await handleLine(socket, {
-    nick: 'codex-agent',
+    nick: 'helper',
     conversations,
     codex,
   }, ':eduardo PRIVMSG #control :@codex hello');

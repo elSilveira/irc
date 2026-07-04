@@ -58,13 +58,13 @@ For a new nick, switch first and then register:
 /ns-register new-account-password
 ```
 
-## Codex Agent
+## Helper
 
-Start the local `codex-agent` bridge. It talks to local `codex app-server`, so
+Start the local `helper` bridge. It talks to local `codex app-server`, so
 Codex owns login, tokens, model access, and streamed responses:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\start-codex-agent.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\start-helper.ps1
 ```
 
 Then use these mIRC shortcuts in `#control`:
@@ -79,7 +79,7 @@ Then use these mIRC shortcuts in `#control`:
 Run `/codex-login` first if Codex is not signed in. The bot replies with the
 browser login URL returned by `codex app-server`.
 
-Use `@codex <message>` in any channel. Direct messages to `codex-agent` also
+Use `@codex <message>` in any channel. Direct messages to `helper` also
 work without the `@codex` prefix. Context is persisted separately per channel
 and direct message, for example `channel:#control`, `channel:#task-0001`, and
 `dm:esilveira`.
@@ -95,6 +95,10 @@ The helper also has BotService shortcuts:
 /botserv-help
 /botserv-new Build local IRC control plane
 ```
+
+Use `/msg BotService HELP AGENTS`, `/msg BotService HELP TASKS`,
+`/msg BotService HELP SKILLS`, or `/msg BotService HELP CODEX` for focused
+command help.
 
 `/botserv-new` sends `/msg BotService NEW`, creates a task such as `TASK-0001`,
 and makes BotService join the split channel `#task-0001`.

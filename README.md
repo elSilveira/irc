@@ -19,14 +19,14 @@ Core rules:
   `packages/llm`, or `packages/tools`.
 - Touch `packages/orchestrator` only for legacy CommonJS bots, mIRC
   compatibility, or Codex app-server bridge compatibility.
-- Do not treat `codex-agent` as a managed agent. Managed agents live in the
+- Do not treat `helper` as a managed agent. Managed agents live in the
   SQLite `agents` table and are started/stopped by the TypeScript supervisor.
 
 Fast context map:
 
 ```text
 apps/orchestrator/              TypeScript global orchestrator and AgentBot
-packages/orchestrator/          Legacy CommonJS codex-agent and BotService
+packages/orchestrator/          Legacy CommonJS helper and BotService
 packages/shared/                Shared ids, permissions, task-event protocol
 packages/db/                    SQLite repositories over db/schema.sql
 packages/tools/                 ToolGateway and allowlisted agent tools
@@ -40,7 +40,7 @@ docs/superpowers/plans/         Active project roadmaps
 
 `packages/orchestrator` is the Legacy CommonJS control plane:
 
-- `codex-agent`: direct Codex app-server IRC bridge for compatibility.
+- `helper`: direct Codex app-server IRC bridge for user assistance.
 - `BotService`: command/help/admin facade for agents and tasks.
 - mIRC tests, legacy parsing, and Codex app-server transport.
 
@@ -60,7 +60,7 @@ and after brain turns.
 ```powershell
 Copy-Item .env.example .env
 docker compose up -d
-powershell -ExecutionPolicy Bypass -File .\scripts\start-codex-agent.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\start-helper.ps1
 npm run orchestrator:dev
 ```
 
@@ -113,7 +113,7 @@ Raw commands for a zero-state agent test:
 ```
 
 `/codex-login` asks the local `codex app-server` for a ChatGPT OAuth URL. After
-login, use `@codex <message>` in a channel. Direct messages to `codex-agent`
+login, use `@codex <message>` in a channel. Direct messages to `helper`
 also work without `@codex`. Each channel and DM has its own persisted Codex
 thread, and `@orc new "Title"` creates a split channel like `#task-0001`.
 
@@ -121,6 +121,10 @@ BotService commands:
 
 ```text
 /msg BotService HELP
+/msg BotService HELP AGENTS
+/msg BotService HELP TASKS
+/msg BotService HELP SKILLS
+/msg BotService HELP CODEX
 /msg BotService AGENTS
 /msg BotService SHOW <id>
 /msg BotService CREATE <id> --nick <nick> --role <role> --context "text"
@@ -157,7 +161,7 @@ IRC line in `irc_messages`, reflects task status on `tasks`, opens approvals for
 ## Implemented Status
 
 - Ergo IRCd via Docker Compose.
-- Legacy `codex-agent` and BotService compatibility bots.
+- Legacy `helper` and BotService compatibility bots.
 - TypeScript global orchestrator with ToolGateway-backed managed agents.
 - BotService agent CRUD: `HELP`, `AGENTS`, `SHOW`, `CREATE`, `UPDATE`,
   `DELETE`, plus `NEW <title>`.

@@ -10,14 +10,14 @@ function createCodexReply(message) {
   }
 
   if (body === 'status') {
-    return 'codex-agent online. Mode: deterministic chat-only bridge; no shell, files, git, browser, or deploy access.';
+    return 'helper online. Mode: deterministic chat-only bridge; no shell, files, git, browser, or deploy access.';
   }
 
   if (body.startsWith('echo ')) {
     return body.slice('echo '.length);
   }
 
-  return 'codex-agent v0 heard you. Use @codex help for available commands.';
+  return 'helper v0 heard you. Use @codex help for available commands.';
 }
 
 module.exports = {

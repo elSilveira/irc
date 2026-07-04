@@ -93,9 +93,14 @@ test('assignTaskChannel joins and reports assignment in the task channel', () =>
   assert.deepEqual(calls, [
     'join:#task-0007',
     'msg:#task-0007:[task:TASK-0007] [type:ack] FeatureImpl assigned: Live task',
+    'msg:#task-0007:[task:TASK-0007] [type:wip] current step: starting assigned work',
   ]);
   assert.match(responses[0] ?? '', /TASK-0007/);
   assert.match(responses[0] ?? '', /Use IRC_TOOL write_file/);
+  assert.match(responses[0] ?? '', /Do not stop after ack/);
+  assert.match(responses[0] ?? '', /\[type:wip\]/);
+  assert.match(responses[0] ?? '', /\[type:result\]/);
+  assert.match(responses[0] ?? '', /\[type:rdt\]/);
 });
 
 test('assignTaskChannel reports agent work output in the task channel', async () => {
@@ -172,7 +177,7 @@ test('assignTaskChannel preserves agent response line boundaries', async () => {
     workspace: '.',
     brain: {
       async respond() {
-        return 'first response line\nsecond response line';
+        return '[task:TASK-0007] [type:wip] first response line\n[task:TASK-0007] [type:rdt] second response line';
       },
     },
   });
@@ -185,6 +190,6 @@ test('assignTaskChannel preserves agent response line boundaries', async () => {
   bot.assignTaskChannel({ id: 'TASK-0007', title: 'Live task', channel: '#task-0007' });
   await new Promise((resolve) => setImmediate(resolve));
 
-  assert.ok(calls.includes('msg:#task-0007:first response line'));
-  assert.ok(calls.includes('msg:#task-0007:second response line'));
+  assert.ok(calls.includes('msg:#task-0007:[task:TASK-0007] [type:wip] first response line'));
+  assert.ok(calls.includes('msg:#task-0007:[task:TASK-0007] [type:rdt] second response line'));
 });

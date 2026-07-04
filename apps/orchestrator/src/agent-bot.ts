@@ -6,6 +6,7 @@ import type { Brain } from './brain.js';
 import { IrcClient, nickFromPrefix, type ParsedLine } from './irc.js';
 import { ensureChainRef } from './conversation-chain.js';
 import { buildAgentSystemPrompt, buildAgentTurn } from './agent-turn.js';
+import { ensureTaskProtocolOutput } from './agent-task-output.js';
 export { buildAgentSystemPrompt, buildAgentTurn } from './agent-turn.js';
 
 export interface AgentBotOptions {
@@ -21,6 +22,7 @@ export interface AgentBotOptions {
   gateway: ToolGateway;
   workspace: string;
   brain?: Brain;
+  taskHeartbeatMs?: number;
 }
 
 /**
@@ -43,6 +45,7 @@ export class AgentBot {
       conversations: options.conversations,
       workspace: options.workspace,
       systemPrompt: buildAgentSystemPrompt(options.agent),
+      maxToolIterations: 16,
     });
   }
 
@@ -84,6 +87,7 @@ export class AgentBot {
     if (!this.irc) return;
     this.irc.join(task.channel);
     this.irc.privmsg(task.channel, `[task:${task.id}] [type:ack] ${this.nick} assigned: ${task.title}`);
+    this.irc.privmsg(task.channel, `[task:${task.id}] [type:wip] current step: starting assigned work`);
     this.startTask(task).catch((error) => {
       const message = error instanceof Error ? error.message : String(error);
       console.error(`[agent:${this.nick}] task start error: ${message}`);
@@ -97,13 +101,18 @@ export class AgentBot {
       'Read the repo context you need, then report progress with task protocol lines.',
       'Use IRC_TOOL write_file for code edits and run_verification for checks.',
       'Do not say you are read-only while IRC_TOOL write_file is available.',
+      'Do not stop after ack; continue until you emit [type:wip], [type:result], and [type:rdt].',
+      'Use [type:blocked] only when a human decision is required.',
     ].join('\n');
+    const heartbeat = setInterval(() => {
+      this.irc?.privmsg(task.channel, `[task:${task.id}] [type:wip] still working`);
+    }, this.options.taskHeartbeatMs ?? 25_000);
     const output = await this.brain.respond(prompt, {
       contextKey: `agent:${this.nick}:task:${task.id}`,
       sender: 'orchestrator',
       channel: task.channel,
-    });
-    for (const chunk of outgoingLines(output, 400)) {
+    }).finally(() => clearInterval(heartbeat));
+    for (const chunk of outgoingLines(ensureTaskProtocolOutput(task.id, output), 400)) {
       this.irc?.privmsg(task.channel, chunk);
     }
   }

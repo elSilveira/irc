@@ -18,7 +18,7 @@ const { createTaskRepository } = require('./task-repository');
 const config = {
   host: process.env.IRC_HOST || '127.0.0.1',
   port: Number(process.env.IRC_PORT || 6667),
-  nick: process.env.CODEX_IRC_NICK || 'codex-agent',
+  nick: process.env.CODEX_IRC_NICK || 'helper',
   botServNick: process.env.BOTSERV_IRC_NICK || 'BotService',
   channel: process.env.CODEX_IRC_CHANNEL || '#control',
   database: process.env.CODEX_IRC_DB || join(process.cwd(), 'data', 'orchestrator.sqlite'),
@@ -41,13 +41,13 @@ function startCodexBot(options = createRuntimeConfig()) {
     buffer = lines.pop();
     for (const line of lines) {
       handleLine(socket, services, line).catch((error) => {
-        console.error(`codex-agent handler error: ${error.message}`);
+        console.error(`helper handler error: ${error.message}`);
       });
     }
   });
 
   socket.on('error', (error) => {
-    console.error(`codex-agent IRC error: ${error.message}`);
+    console.error(`helper IRC error: ${error.message}`);
   });
 
   return socket;

@@ -8,6 +8,7 @@ test('documents Codex app-server IRC workflow', () => {
 
   assert.match(readme, /codex app-server/i);
   assert.match(readme, /\/codex-login/);
+  assert.match(readme, /helper/);
   assert.match(readme, /direct messages/i);
   assert.match(readme, /@orc new/);
   assert.match(readme, /#task-0001/);
@@ -25,5 +26,6 @@ test('documents orchestrator app and package split', () => {
     assert.match(doc, /apps\/orchestrator/);
     assert.match(doc, /Legacy CommonJS/i);
     assert.match(doc, /TypeScript global orchestrator/i);
+    assert.match(doc, /helper/);
   }
 });

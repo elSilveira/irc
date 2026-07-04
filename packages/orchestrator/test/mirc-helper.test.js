@@ -21,6 +21,30 @@ test('defines control-plane shortcut aliases', () => {
   }
 });
 
+test('defines skills modal dialog and interaction aliases', () => {
+  const script = readFileSync(scriptPath, 'utf8');
+
+  assert.match(script, /dialog eduardoirc_skills/);
+  assert.match(script, /alias orc-skills/);
+  assert.match(script, /alias orc-skill-help/);
+  assert.match(script, /did -a eduardoirc_skills 10/);
+  assert.match(script, /on \*:dialog:eduardoirc_skills:sclick:/);
+  assert.match(script, /msg #control @orc skills/);
+  assert.match(script, /msg BotService HELP SKILLS/);
+});
+
+test('skills modal allows editing skill and adding detail to task request', () => {
+  const script = readFileSync(scriptPath, 'utf8');
+
+  assert.match(script, /edit "", 23, .*autohs/);
+  assert.match(script, /text "Detail", 42/);
+  assert.match(script, /edit "", 24, .*multi return autovs vsbar/);
+  assert.match(script, /did -ra eduardoirc_skills 23 %skill/);
+  assert.match(script, /var %skill = \$did\(eduardoirc_skills,23\)\.text/);
+  assert.match(script, /var %detail = \$did\(eduardoirc_skills,24\)\.text/);
+  assert.match(script, /if \(%detail\) \{ msg #control @orc new \$qt\(%skill \$\+ : %request %detail\) \}/);
+});
+
 test('documents agent context argument in mIRC helper', () => {
   const readmePath = join(__dirname, '../../../clients/mirc/README.md');
   const readme = readFileSync(readmePath, 'utf8');

@@ -8,9 +8,9 @@ test('returns BotService help', () => {
   assert.equal(result.ok, true);
   assert.equal(result.joins.length, 0);
   assert.ok(result.replies.every((line) => line.length <= 90));
-  assert.match(result.replies.join('\n'), /CREATE <id>/);
-  assert.match(result.replies.join('\n'), /SKILLS/);
-  assert.match(result.replies.join('\n'), /Codex: @codex/);
+  assert.match(result.replies.join('\n'), /HELP AGENTS/);
+  assert.match(result.replies.join('\n'), /HELP SKILLS/);
+  assert.match(result.replies.join('\n'), /HELP CODEX/);
 });
 
 test('lists available skill packs', () => {
@@ -54,7 +54,7 @@ test('lists available service agents', () => {
   assert.deepEqual(handleBotServ('AGENTS', { agents }), {
     ok: true,
     joins: [],
-    replies: ['Agents', 'feature | nick=feature-implementer | role=implementer | status=idle', 'codex-agent | legacy bridge'],
+    replies: ['Agents', 'feature | nick=feature-implementer | role=implementer | status=idle', 'helper | user command bridge'],
   });
 });
 

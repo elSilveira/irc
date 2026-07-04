@@ -10,7 +10,7 @@ test('ignores messages not addressed to codex', () => {
 test('responds with status', () => {
   const reply = createCodexReply({ text: '@codex status' });
 
-  assert.match(reply, /codex-agent online/);
+  assert.match(reply, /helper online/);
   assert.match(reply, /chat-only/);
 });
 

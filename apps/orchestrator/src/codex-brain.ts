@@ -66,6 +66,7 @@ export class CodexBrain implements Brain {
     const threadId = existing?.threadId;
 
     const framed = `${this.options.systemPrompt}\n\nWorkspace: ${this.options.workspace}\n\nUser request: ${prompt}`;
+    const originalRequest = prompt;
     let currentPrompt = framed;
     let lastText = '';
     let activeThread = threadId;
@@ -83,6 +84,7 @@ export class CodexBrain implements Brain {
 
       const toolResult = await this.options.gateway.execute(toolCall.tool, toolCall.input);
       currentPrompt = [
+        `Original request: ${originalRequest}`,
         `You called ${toolCall.tool} with ${JSON.stringify(toolCall.input)}.`,
         `TOOL_RESULT: ${JSON.stringify(toolResult)}`,
         'If more tool work is needed, emit another IRC_TOOL line and stop.',

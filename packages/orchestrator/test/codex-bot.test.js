@@ -27,7 +27,7 @@ test('responds to ping', () => {
 test('joins configured channel after welcome', () => {
   const socket = fakeSocket();
 
-  handleLine(socket, { channel: '#control' }, ':server 001 codex-agent :Welcome');
+  handleLine(socket, { channel: '#control' }, ':server 001 helper :Welcome');
 
   assert.deepEqual(socket.writes, ['JOIN #control\r\n']);
 });
@@ -38,7 +38,7 @@ test('sends channel codex prompts through persisted context', async () => {
   const codex = fakeCodex('real reply', 'thr_1');
 
   await handleLine(socket, {
-    nick: 'codex-agent',
+    nick: 'helper',
     conversations,
     codex,
   }, ':eduardo PRIVMSG #control :@codex hello');
@@ -54,10 +54,10 @@ test('replies to direct codex messages using sender context', async () => {
   const codex = fakeCodex('direct reply', 'thr_dm');
 
   await handleLine(socket, {
-    nick: 'codex-agent',
+    nick: 'helper',
     conversations,
     codex,
-  }, ':eduardo PRIVMSG codex-agent :hello');
+  }, ':eduardo PRIVMSG helper :hello');
 
   assert.deepEqual(codex.calls, [{ prompt: 'hello', threadId: 'thr_dm' }]);
   assert.deepEqual(socket.writes, ['PRIVMSG eduardo :direct reply\r\n']);
@@ -72,7 +72,7 @@ test('returns codex login url for login command', async () => {
   };
 
   await handleLine(socket, {
-    nick: 'codex-agent',
+    nick: 'helper',
     codex,
   }, ':eduardo PRIVMSG #control :@codex login');
 
@@ -85,7 +85,7 @@ test('ignores @orc commands so orchestrator owns task creation', async () => {
   const socket = fakeSocket();
 
   await handleLine(socket, {
-    nick: 'codex-agent',
+    nick: 'helper',
     tasks: {
       createTask() {
         return {
@@ -122,6 +122,10 @@ test('handles BotService direct NEW commands', async () => {
 
 test('reads bot nick from cli args', () => {
   assert.equal(createRuntimeConfig(['--nick', 'BotService']).nick, 'BotService');
+});
+
+test('defaults the user helper bridge nick to helper', () => {
+  assert.equal(createRuntimeConfig([], {}).nick, 'helper');
 });
 
 test('logs registration errors from the irc server', async () => {
