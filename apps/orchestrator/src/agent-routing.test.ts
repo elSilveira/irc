@@ -11,6 +11,7 @@ const baseAgent = {
   strengths: '',
   weaknesses: '',
   capacity: 1,
+  skills: '',
 };
 
 test('chooseAgentForTask prefers matching strengths', () => {

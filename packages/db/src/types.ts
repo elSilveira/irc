@@ -7,6 +7,7 @@ export interface Agent {
   strengths: string;
   weaknesses: string;
   capacity: number;
+  skills: string;
 }
 
 export interface Task {

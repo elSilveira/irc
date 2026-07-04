@@ -36,6 +36,12 @@ function setup() {
 
 test('rdt handoff creates QA agent and assigns it to the task channel', () => {
   const s = setup();
+  s.repos.agents.createAgent({
+    id: 'qa',
+    nick: 'QA',
+    role: 'qa',
+    context: 'validates work',
+  });
   s.repos.taskEvents.recordEvent({
     taskId: s.task.id,
     actor: 'FeatureImpl',
@@ -50,11 +56,27 @@ test('rdt handoff creates QA agent and assigns it to the task channel', () => {
     irc: s.irc,
   });
 
-  assert.equal(s.repos.agents.findAgent('qa')?.nick, 'QA');
   assert.equal(s.repos.tasks.findTask(s.task.id)?.assignedTo, 'qa');
   assert.equal(s.repos.tasks.findTask(s.task.id)?.status, 'testing');
   assert.match(s.assigned[0] ?? '', /^QA:TASK-0001:/);
   assert.match(s.assigned[0] ?? '', /implemented requested behavior/);
+  s.repos.close();
+});
+
+test('rdt handoff requires an existing dedicated QA agent', () => {
+  const s = setup();
+
+  handleQaLifecycle({
+    ingested: { taskId: s.task.id, eventType: 'rdt' },
+    repos: s.repos,
+    supervisor: s.supervisor,
+    irc: s.irc,
+  });
+
+  assert.equal(s.repos.agents.findAgent('qa'), null);
+  assert.equal(s.repos.tasks.findTask(s.task.id)?.assignedTo, 'feature-implementer');
+  assert.equal(s.messages.some((message) => message === 'spawn:QA'), false);
+  assert.ok(s.messages.includes('#task-0001:TASK-0001 is ready to test, but QA agent is missing.'));
   s.repos.close();
 });
 

@@ -22,6 +22,7 @@ test('persists agent context in sqlite', () => {
     strengths: '',
     weaknesses: '',
     capacity: 1,
+    skills: '',
   });
 });
 
@@ -52,12 +53,14 @@ test('lists, updates, and deletes agents', () => {
     strengths: 'typescript,tests',
     weaknesses: 'design',
     capacity: 2,
+    skills: 'implementation,tdd',
   });
   assert.equal(updated.role, 'implementer');
   assert.equal(updated.context, 'new');
   assert.equal(updated.strengths, 'typescript,tests');
   assert.equal(updated.weaknesses, 'design');
   assert.equal(updated.capacity, 2);
+  assert.equal(updated.skills, 'implementation,tdd');
 
   assert.equal(repository.deleteAgent('a'), true);
   assert.equal(repository.findAgent('a'), null);

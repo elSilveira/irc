@@ -11,7 +11,7 @@ export { buildAgentSystemPrompt, buildAgentTurn } from './agent-turn.js';
 export interface AgentBotOptions {
   host: string;
   port: number;
-  agent: { id: string; nick: string; role: string; context: string };
+  agent: { id: string; nick: string; role: string; context: string; skills?: string };
   /** Channels the agent should join. */
   channels: string[];
   /** Channel where the agent posts its online greeting. Defaults to channels[0]. */

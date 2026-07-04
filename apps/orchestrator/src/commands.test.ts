@@ -67,6 +67,24 @@ test('new auto-assigns the best free agent', () => {
   assert.deepEqual(c.assignedChannels, ['DocsAgent:TASK-0001:#task-0001']);
 });
 
+test('new ensures dedicated QA before assigning implementer work', () => {
+  const c = setup();
+  c.services.repos.agents.createAgent({
+    id: 'feature-agent',
+    nick: 'FeatureAgent',
+    role: 'feature',
+    context: 'implements features',
+    strengths: 'feature',
+  });
+
+  handleCommand({ name: 'new', args: ['Build feature'] }, c.services);
+
+  assert.equal(c.services.repos.agents.findAgent('qa')?.nick, 'QA');
+  assert.equal(c.sent.some((entry) => entry.target === 'codex-agent' && /create.*QA/i.test(entry.text)), true);
+  assert.equal(c.services.repos.tasks.findTask('TASK-0001')?.assignedTo, 'feature-agent');
+  assert.deepEqual(c.assignedChannels, ['FeatureAgent:TASK-0001:#task-0001']);
+});
+
 test('new queues for the best busy agent', () => {
   const c = setup();
   c.services.repos.agents.createAgent({

@@ -23,6 +23,6 @@ export function reconcileManagedAgents(input: ReconcileAgentsInput): void {
   input.log?.(`[orchestrator] reconcile ${parts.join(' ')}`);
 }
 
-function toSummary(agent: { id: string; nick: string; role: string; context: string }): AgentSummary {
-  return { id: agent.id, nick: agent.nick, role: agent.role, context: agent.context };
+function toSummary(agent: { id: string; nick: string; role: string; context: string; skills?: string }): AgentSummary {
+  return { id: agent.id, nick: agent.nick, role: agent.role, context: agent.context, skills: agent.skills };
 }

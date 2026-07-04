@@ -9,7 +9,24 @@ test('returns BotService help', () => {
   assert.equal(result.joins.length, 0);
   assert.ok(result.replies.every((line) => line.length <= 90));
   assert.match(result.replies.join('\n'), /CREATE <id>/);
+  assert.match(result.replies.join('\n'), /SKILLS/);
   assert.match(result.replies.join('\n'), /Codex: @codex/);
+});
+
+test('lists available skill packs', () => {
+  const result = handleBotServ('SKILLS', {});
+  assert.match(result.replies.join('\n'), /implementation/);
+  assert.match(result.replies.join('\n'), /qa/);
+});
+
+test('guides skill pack creation', () => {
+  const result = handleBotServ('SKILLPACK CREATE browser --skills browser,inspection --match browser,web', {});
+  assert.deepEqual(result.replies, [
+    'Skill pack draft: browser',
+    'skills=browser,inspection',
+    'match=browser,web',
+    'Add it to agent-skills catalog, then use --skills browser,inspection',
+  ]);
 });
 
 test('creates task channels through BotService NEW', () => {
@@ -67,6 +84,7 @@ test('creates managed agents through BotService', () => {
         strengths: 'typescript,tests',
         weaknesses: 'infra',
         capacity: 2,
+        skills: 'implementation,tdd,repo-editing',
       });
       return { ...input, status: 'idle' };
     },
@@ -113,13 +131,13 @@ test('updates and deletes managed agents through BotService', () => {
   };
 
   assert.deepEqual(
-    handleBotServ('UPDATE feature --role qa --context "Reviews changes" --strengths review --capacity 3', { agents })
+    handleBotServ('UPDATE feature --role qa --context "Reviews changes" --strengths review --capacity 3 --skills qa,testing', { agents })
       .replies,
     ['OK updated feature'],
   );
   assert.deepEqual(handleBotServ('DELETE feature', { agents }).replies, ['OK deleted feature']);
   assert.deepEqual(calls, [
-    ['update', 'feature', { role: 'qa', context: 'Reviews changes', strengths: 'review', capacity: 3 }],
+    ['update', 'feature', { role: 'qa', context: 'Reviews changes', strengths: 'review', capacity: 3, skills: 'qa,testing' }],
     ['delete', 'feature'],
   ]);
 });

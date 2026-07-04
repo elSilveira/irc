@@ -134,14 +134,16 @@ test('manage_agents creates and lists agents', async () => {
     strengths: 'planning,docs',
     weaknesses: 'frontend',
     capacity: 2,
+    skills: 'orchestration,planning',
   });
   assert.equal(created.ok, true);
 
   const list = await gateway.execute('manage_agents', { action: 'list' });
-  const data = list.data as { agents: { id: string; strengths: string; capacity: number }[] };
+  const data = list.data as { agents: { id: string; strengths: string; capacity: number; skills: string }[] };
   assert.deepEqual(data.agents.map((a) => a.id), ['manager-agent']);
   assert.equal(data.agents[0]?.strengths, 'planning,docs');
   assert.equal(data.agents[0]?.capacity, 2);
+  assert.equal(data.agents[0]?.skills, 'orchestration,planning');
   ctx.close();
 });
 

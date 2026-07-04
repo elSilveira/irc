@@ -1,21 +1,13 @@
 import type { Repositories } from '@irc/db';
+import type { Agent } from '@irc/db';
 import type { IngestResult } from './task-events.js';
-
-const QA_AGENT = {
-  id: 'qa',
-  nick: 'QA',
-  role: 'qa',
-  context: 'Validates task results against the initial request before final answer.',
-  strengths: 'qa,testing,validation,review,regression,acceptance',
-  weaknesses: '',
-  capacity: 1,
-};
+import { QA_AGENT } from './qa-agent.js';
 
 export interface QaLifecycleServices {
   ingested: IngestResult;
   repos: Repositories;
   supervisor: {
-    spawn(agent: typeof QA_AGENT, channels: string[], greetChannel?: string): unknown;
+    spawn(agent: Pick<Agent, 'id' | 'nick' | 'role' | 'context'>, channels: string[], greetChannel?: string): unknown;
     assignTaskChannel(nick: string, task: { id: string; title: string; channel: string }): boolean;
   };
   irc: { privmsg(target: string, text: string): void };
@@ -36,10 +28,15 @@ export function handleQaLifecycle(services: QaLifecycleServices): void {
   }
 }
 
-function handoffToQa({ ingested, repos, supervisor }: QaLifecycleServices): void {
+function handoffToQa({ ingested, repos, supervisor, irc }: QaLifecycleServices): void {
   const task = repos.tasks.findTask(ingested.taskId);
   if (!task) return;
-  const qa = ensureQaAgent(repos);
+  const qa = repos.agents.findAgent(QA_AGENT.id);
+  if (!qa) {
+    repos.tasks.updateStatus(task.id, 'rdt');
+    irc.privmsg(task.channel, `${task.id} is ready to test, but QA agent is missing.`);
+    return;
+  }
   supervisor.spawn(qa, ['#agents', task.channel], task.channel);
   repos.tasks.assignTask(task.id, qa.id, 'testing');
   supervisor.assignTaskChannel(qa.nick, {
@@ -71,10 +68,6 @@ function loopToImplementer({ ingested, repos, supervisor, irc }: QaLifecycleServ
     channel: task.channel,
     title: `${task.title}\nQA feedback: ${feedback}`,
   });
-}
-
-function ensureQaAgent(repos: Repositories): typeof QA_AGENT {
-  return repos.agents.findAgent(QA_AGENT.id) ?? repos.agents.createAgent(QA_AGENT);
 }
 
 function qaPrompt(title: string, result: string): string {

@@ -8,6 +8,7 @@ export interface AgentSummary {
   nick: string;
   role: string;
   context: string;
+  skills?: string;
 }
 
 /**

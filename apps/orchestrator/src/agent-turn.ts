@@ -12,6 +12,7 @@ export interface AgentIdentity {
   nick: string;
   role: string;
   context: string;
+  skills?: string;
 }
 
 export interface AgentTurnInput {
@@ -32,6 +33,7 @@ export function buildAgentSystemPrompt(agent: AgentIdentity): string {
   return [
     `You are the IRC agent "${agent.nick}" (id ${agent.id}).`,
     `Role: ${agent.role}.`,
+    agent.skills ? `Skills: ${agent.skills}` : '',
     `Operating context: ${agent.context}`,
     'Stay in character, be concise (a few short IRC lines), and answer the user.',
     'When you delegate work or answer later, include the current [chain:<id>] marker.',

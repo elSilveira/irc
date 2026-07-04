@@ -2,6 +2,7 @@ import type { Repositories } from '@irc/db';
 import type { IrcClient } from './irc.js';
 import { isTaskCommand, handleTaskCommand } from './task-commands.js';
 import { chooseAgentForTask } from './agent-routing.js';
+import { ensureQaAgent, isQaAgent } from './qa-agent.js';
 
 export interface CommandServices {
   irc: IrcClient;
@@ -45,9 +46,12 @@ export function handleCommand(command: { name: string; args: string[] }, service
         }
         const task = services.repos.tasks.createTask(title);
         services.irc.join(task.channel);
+        const hadQa = services.repos.agents.findAgent('qa') !== null;
+        ensureQaAgent(services.repos);
+        if (!hadQa) requestQaAgent(services);
         const routed = chooseAgentForTask({
           title,
-          agents: services.repos.agents.listAgents(),
+          agents: services.repos.agents.listAgents().filter((agent) => !isQaAgent(agent)),
           tasks: services.repos.tasks.listTasks(),
         });
         if (!routed) {
@@ -104,6 +108,10 @@ function formatTasks(repos: Repositories): string {
 
 function reply(services: CommandServices, text: string): void {
   services.irc.privmsg(services.channels[0] ?? '#control', text);
+}
+
+function requestQaAgent(services: CommandServices): void {
+  services.irc.privmsg('codex-agent', 'Please create managed QA agent `qa` nick `QA` for task validation.');
 }
 
 function notifyAgent(

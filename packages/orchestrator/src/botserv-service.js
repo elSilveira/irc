@@ -1,3 +1,5 @@
+const { inferAgentSkills, listAgentSkillPacks, skillPackGuide } = require('./agent-skills');
+
 function handleBotServ(text, services) {
   const [command, ...args] = tokenize(text);
   const normalized = (command || 'HELP').toUpperCase();
@@ -12,6 +14,14 @@ function handleBotServ(text, services) {
 
   if (normalized === 'SHOW') {
     return response(showAgent(args[0], services.agents));
+  }
+
+  if (normalized === 'SKILLS') {
+    return response(['Skills', ...listAgentSkillPacks()]);
+  }
+
+  if (normalized === 'SKILLPACK') {
+    return response(skillPackGuide(args, parseFlags));
   }
 
   if (normalized === 'CREATE') {
@@ -41,11 +51,12 @@ function handleBotServ(text, services) {
 function helpLines() {
   return [
     'BotService',
-    'HELP | AGENTS | SHOW <id> | DELETE <id>',
+    'HELP | AGENTS | SHOW <id> | DELETE <id> | SKILLS',
     'NEW "title" -> create task channel',
     'CREATE <id> --nick <nick> --role <role>',
     '  --context "text"',
-    '  [--strengths a,b] [--weaknesses x] [--capacity n]',
+    '  [--strengths a,b] [--weaknesses x] [--capacity n] [--skills a,b]',
+    'SKILLPACK CREATE <id> --skills a,b --match words',
     'UPDATE <id> [--nick n] [--role r]',
     '  [--context "text"]',
     'Codex: @codex <message> or /msg codex-agent <message>',
@@ -65,10 +76,11 @@ function showAgent(id, repository) {
   if (!id) return ['SHOW requires id'];
   const agent = repository.findAgent(id);
   if (!agent) return [`Agent not found: ${id}`];
-  return routeLine(agent) ? [formatAgent(agent), routeLine(agent), `context=${agent.context}`] : [
+  return routeLine(agent) ? [formatAgent(agent), routeLine(agent), skillsLine(agent), `context=${agent.context}`].filter(Boolean) : [
     formatAgent(agent),
+    skillsLine(agent),
     `context=${agent.context}`,
-  ];
+  ].filter(Boolean);
 }
 
 function createAgent(args, repository) {
@@ -85,6 +97,7 @@ function createAgent(args, repository) {
     strengths: flags.strengths,
     weaknesses: flags.weaknesses,
     capacity: parseCapacity(flags.capacity),
+    skills: flags.skills || inferAgentSkills(flags),
   });
   return [`OK created ${agent.id} | nick=${agent.nick} | role=${agent.role}`];
 }
@@ -93,8 +106,8 @@ function updateAgent(args, repository) {
   const id = args[0];
   const flags = parseFlags(args.slice(1));
   if (!id) return ['UPDATE requires id'];
-  if (!flags.role && !flags.context && !flags.nick && !flags.strengths && !flags.weaknesses && !flags.capacity) {
-    return ['UPDATE requires --nick, --role, --context, or route fields'];
+  if (!flags.role && !flags.context && !flags.nick && !flags.strengths && !flags.weaknesses && !flags.capacity && !flags.skills) {
+    return ['UPDATE requires --nick, --role, --context, --skills, or route fields'];
   }
   repository.updateAgent(id, cleanFields({
     nick: flags.nick,
@@ -103,6 +116,7 @@ function updateAgent(args, repository) {
     strengths: flags.strengths,
     weaknesses: flags.weaknesses,
     capacity: parseCapacity(flags.capacity),
+    skills: flags.skills,
   }));
   return [`OK updated ${id}`];
 }
@@ -120,6 +134,11 @@ function routeLine(agent) {
   if (!agent.strengths && !agent.weaknesses && !agent.capacity) return null;
   return `route strengths=${agent.strengths || '-'} | weaknesses=${agent.weaknesses || '-'} | capacity=${agent.capacity || 1}`;
 }
+
+function skillsLine(agent) {
+  return agent.skills ? `skills=${agent.skills}` : null;
+}
+
 
 function response(replies) {
   return { ok: true, joins: [], replies };

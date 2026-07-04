@@ -8,11 +8,13 @@ test('agent prompt includes role context and repo tools', () => {
     nick: 'readme-agent',
     role: 'researcher',
     context: 'Reads repository docs for IRC users.',
+    skills: 'research,docs,context',
   });
 
   assert.match(prompt, /readme-agent/);
   assert.match(prompt, /researcher/);
   assert.match(prompt, /Reads repository docs/);
+  assert.match(prompt, /Skills: research,docs,context/);
   assert.match(prompt, /read_file/);
   assert.match(prompt, /write_file/);
   assert.match(prompt, /run_verification/);

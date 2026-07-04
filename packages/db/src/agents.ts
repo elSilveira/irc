@@ -33,6 +33,7 @@ export interface AgentInput {
   strengths?: string;
   weaknesses?: string;
   capacity?: number;
+  skills?: string;
 }
 
 export interface ConversationRepository {
@@ -66,9 +67,9 @@ export function createAgentRepository(database: DatabaseSync): AgentRepository {
       if (existing) throw new Error(`agent already exists: ${id}`);
 
       database.prepare(`
-        INSERT INTO agents (id, nick, role, status, context, strengths, weaknesses, capacity)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(id, nick, role, 'idle', context, input.strengths ?? '', input.weaknesses ?? '', input.capacity ?? 1);
+        INSERT INTO agents (id, nick, role, status, context, strengths, weaknesses, capacity, skills)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(id, nick, role, 'idle', context, input.strengths ?? '', input.weaknesses ?? '', input.capacity ?? 1, input.skills ?? '');
 
       return findAgentRow(database, id) ?? throwNotFound(id);
     },
@@ -91,9 +92,9 @@ export function createAgentRepository(database: DatabaseSync): AgentRepository {
       const next: Agent = { ...current, ...stripUndefined(fields) };
       database.prepare(`
         UPDATE agents
-        SET nick = ?, role = ?, status = ?, context = ?, strengths = ?, weaknesses = ?, capacity = ?
+        SET nick = ?, role = ?, status = ?, context = ?, strengths = ?, weaknesses = ?, capacity = ?, skills = ?
         WHERE id = ?
-      `).run(next.nick, next.role, next.status, next.context, next.strengths, next.weaknesses, next.capacity, id);
+      `).run(next.nick, next.role, next.status, next.context, next.strengths, next.weaknesses, next.capacity, next.skills, id);
 
       return findAgentRow(database, id) ?? throwNotFound(id);
     },
@@ -102,7 +103,7 @@ export function createAgentRepository(database: DatabaseSync): AgentRepository {
   };
 }
 
-const AGENT_COLUMNS = 'id, nick, role, status, context, strengths, weaknesses, capacity';
+const AGENT_COLUMNS = 'id, nick, role, status, context, strengths, weaknesses, capacity, skills';
 
 function findAgentRow(database: DatabaseSync, id: string): Agent | null {
   const row = database
@@ -117,6 +118,7 @@ function ensureAgentRoutingColumns(database: DatabaseSync): void {
   if (!names.has('strengths')) database.exec("ALTER TABLE agents ADD COLUMN strengths TEXT NOT NULL DEFAULT ''");
   if (!names.has('weaknesses')) database.exec("ALTER TABLE agents ADD COLUMN weaknesses TEXT NOT NULL DEFAULT ''");
   if (!names.has('capacity')) database.exec('ALTER TABLE agents ADD COLUMN capacity INTEGER NOT NULL DEFAULT 1');
+  if (!names.has('skills')) database.exec("ALTER TABLE agents ADD COLUMN skills TEXT NOT NULL DEFAULT ''");
 }
 
 function throwNotFound(id: string): never {

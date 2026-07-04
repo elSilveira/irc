@@ -10,7 +10,7 @@ export const manageAgentsTool: Tool = {
   name: 'manage_agents',
   description:
     'Create, list, or update IRC agents. Actions: list, create, update. ' +
-    'create needs id, nick, role, context. Optional: strengths, weaknesses, capacity.',
+    'create needs id, nick, role, context. Optional: strengths, weaknesses, capacity, skills.',
   capability: 'manage_agents',
   schema: 'object',
   async run(input: unknown, context: ToolContext): Promise<ToolResult> {
@@ -36,11 +36,12 @@ function createAgent(input: unknown, context: ToolContext): ToolResult {
   const strengths = readString(input, 'strengths');
   const weaknesses = readString(input, 'weaknesses');
   const capacity = readNumber(input, 'capacity');
+  const skills = readString(input, 'skills');
   if (!id || !nick || !role || !agentContext) {
     return { ok: false, error: 'create requires id, nick, role, context' };
   }
   try {
-    const agent = context.agents.createAgent({ id, nick, role, context: agentContext, strengths, weaknesses, capacity });
+    const agent = context.agents.createAgent({ id, nick, role, context: agentContext, strengths, weaknesses, capacity, skills });
     return { ok: true, data: { agent } };
   } catch (error) {
     return { ok: false, error: message(error) };
@@ -50,17 +51,19 @@ function createAgent(input: unknown, context: ToolContext): ToolResult {
 function updateAgent(input: unknown, context: ToolContext): ToolResult {
   const id = readString(input, 'id');
   if (!id) return { ok: false, error: 'update requires id' };
-  const fields: { role?: string; context?: string; strengths?: string; weaknesses?: string; capacity?: number } = {};
+  const fields: { role?: string; context?: string; strengths?: string; weaknesses?: string; capacity?: number; skills?: string } = {};
   const role = readString(input, 'role');
   const agentContext = readString(input, 'context');
   const strengths = readString(input, 'strengths');
   const weaknesses = readString(input, 'weaknesses');
   const capacity = readNumber(input, 'capacity');
+  const skills = readString(input, 'skills');
   if (role) fields.role = role;
   if (agentContext) fields.context = agentContext;
   if (strengths) fields.strengths = strengths;
   if (weaknesses) fields.weaknesses = weaknesses;
   if (capacity) fields.capacity = capacity;
+  if (skills) fields.skills = skills;
   if (Object.keys(fields).length === 0) {
     return { ok: false, error: 'update requires at least one editable field' };
   }

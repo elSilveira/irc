@@ -12,6 +12,7 @@ test('createRepositories creates an agent and finds it', () => {
     strengths: 'planning,docs',
     weaknesses: 'frontend',
     capacity: 2,
+    skills: 'orchestration,planning',
   });
 
   assert.equal(agent.id, 'manager-agent');
@@ -19,6 +20,7 @@ test('createRepositories creates an agent and finds it', () => {
   assert.equal(agent.strengths, 'planning,docs');
   assert.equal(agent.weaknesses, 'frontend');
   assert.equal(agent.capacity, 2);
+  assert.equal(agent.skills, 'orchestration,planning');
   assert.deepEqual(repos.agents.findAgent('manager-agent'), agent);
   repos.close();
 });
@@ -41,6 +43,7 @@ test('updateAgent edits role and context', () => {
     strengths: 'tests,review',
     weaknesses: 'infra',
     capacity: 3,
+    skills: 'qa,testing',
   });
 
   assert.equal(updated.role, 'qa');
@@ -48,6 +51,7 @@ test('updateAgent edits role and context', () => {
   assert.equal(updated.strengths, 'tests,review');
   assert.equal(updated.weaknesses, 'infra');
   assert.equal(updated.capacity, 3);
+  assert.equal(updated.skills, 'qa,testing');
   repos.close();
 });
 
