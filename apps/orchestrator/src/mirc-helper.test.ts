@@ -20,3 +20,9 @@ test("skills modal shows descriptions for every skill", () => {
     assert.match(helperScript, new RegExp(`did -a eduardoirc_skills 10 ${skill}: .+\\.`));
   }
 });
+
+test("project alias sends project commands to the orchestrator", () => {
+  assert.match(helperScript, /alias project \{/);
+  assert.match(helperScript, /Usage: \/project connect <#channel> <workspace>/);
+  assert.match(helperScript, /msg \$iif\(\$chan,\$chan,#control\) @orc project \$1-/);
+});

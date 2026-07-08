@@ -32,12 +32,16 @@ const DETERMINISTIC_COMMANDS = new Set([
   'status',
   'tasks',
   'new',
+  'projects',
+  'project',
+  'join',
   'logs',
   'approvals',
   'approve',
   'deny',
   'assign',
   'review',
+  'sign',
   'summarize',
 ]);
 
@@ -47,28 +51,18 @@ export function routeOrchestratorMessage(input: RouteInput): RoutedMessage {
   const replyTarget = isDm ? sender : target;
   const trimmed = text.trim();
 
-  if (sender.toLowerCase() === botNick.toLowerCase()) {
-    return ignore(input);
-  }
+  if (sender.toLowerCase() === botNick.toLowerCase()) return ignore(input);
 
-  if (isDm) {
-    return { kind: 'chat', sender, target, replyTarget, text, prompt: trimmed };
-  }
+  if (isDm) return { kind: 'chat', sender, target, replyTarget, text, prompt: trimmed };
 
   const mention = matchMention(trimmed, ORCHESTRATOR_MENTION);
-  if (mention !== null) {
-    return { kind: 'chat', sender, target, replyTarget, text, prompt: mention };
-  }
+  if (mention !== null) return { kind: 'chat', sender, target, replyTarget, text, prompt: mention };
 
-  if (trimmed.toLowerCase().startsWith(COMMAND_PREFIX)) {
-    const rest = trimmed.slice(COMMAND_PREFIX.length).trim();
-    const [name, ...args] = tokenize(rest);
-    if (!name) return ignore(input);
-    if (DETERMINISTIC_COMMANDS.has(name.toLowerCase())) {
-      return { kind: 'command', sender, target, replyTarget, text, command: { name: name.toLowerCase(), args } };
-    }
-    return { kind: 'chat', sender, target, replyTarget, text, prompt: rest };
-  }
+  const prefixed = parsePrefixedCommand(trimmed, COMMAND_PREFIX);
+  if (prefixed) return routePrefixedCommand(input, replyTarget, prefixed.rest, true);
+
+  const slash = parseSlashCommand(trimmed);
+  if (slash) return routePrefixedCommand(input, replyTarget, slash.rest, false);
 
   return ignore(input);
 }
@@ -77,6 +71,28 @@ export function isManagedAgentDirectMessage(input: ManagedAgentDirectInput): boo
   if (input.target.toLowerCase() !== input.botNick.toLowerCase()) return false;
   const sender = input.sender.toLowerCase();
   return input.agentNicks.some((nick) => nick.toLowerCase() === sender);
+}
+
+function routePrefixedCommand(input: RouteInput, replyTarget: string, rest: string, allowChatFallback: boolean): RoutedMessage {
+  const [name, ...args] = tokenize(rest);
+  if (!name) return ignore(input);
+  const commandName = name.toLowerCase();
+  if (DETERMINISTIC_COMMANDS.has(commandName)) {
+    return { kind: 'command', sender: input.sender, target: input.target, replyTarget, text: input.text, command: { name: commandName, args } };
+  }
+  if (allowChatFallback) return { kind: 'chat', sender: input.sender, target: input.target, replyTarget, text: input.text, prompt: rest };
+  return ignore(input);
+}
+
+function parsePrefixedCommand(text: string, prefix: string): { rest: string } | null {
+  if (!text.toLowerCase().startsWith(prefix)) return null;
+  return { rest: text.slice(prefix.length).trim() };
+}
+
+function parseSlashCommand(text: string): { rest: string } | null {
+  if (!text.startsWith('/')) return null;
+  const rest = text.slice(1).trim();
+  return rest.length > 0 ? { rest } : null;
 }
 
 function matchMention(text: string, mention: string): string | null {

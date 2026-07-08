@@ -2,6 +2,12 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { CODEX_BRIDGE_INSTRUCTIONS } from './codex-bridge.js';
 
+test('Codex bridge instructions advertise external read tools', () => {
+  assert.match(CODEX_BRIDGE_INSTRUCTIONS, /IRC_TOOL/);
+  assert.match(CODEX_BRIDGE_INSTRUCTIONS, /list_files/);
+  assert.match(CODEX_BRIDGE_INSTRUCTIONS, /read_file/);
+});
+
 test('Codex bridge instructions advertise external write tools', () => {
   assert.match(CODEX_BRIDGE_INSTRUCTIONS, /IRC_TOOL/);
   assert.match(CODEX_BRIDGE_INSTRUCTIONS, /write_file/);

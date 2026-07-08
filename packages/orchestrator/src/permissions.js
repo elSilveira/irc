@@ -6,6 +6,8 @@ const allowedCapabilities = Object.freeze([
   'ask_context',
   'summarize',
   'propose_action',
+  'service_restart',
+  'docker_update',
 ]);
 
 const blockedCapabilities = Object.freeze([

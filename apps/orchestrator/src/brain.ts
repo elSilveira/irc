@@ -7,6 +7,7 @@ export interface BrainContext {
   contextKey: string;
   sender?: string;
   channel?: string;
+  workspace?: string;
 }
 
 export interface Brain {

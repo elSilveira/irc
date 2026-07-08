@@ -1,7 +1,8 @@
 import type { Repositories } from '@irc/db';
 import type { CommandServices } from './commands.js';
+import { startNextQueuedTaskForAgent } from './task-queue.js';
 
-const TASK_COMMANDS = new Set(['logs', 'approvals', 'approve', 'deny', 'assign', 'review', 'summarize']);
+const TASK_COMMANDS = new Set(['logs', 'approvals', 'approve', 'deny', 'assign', 'review', 'sign', 'summarize']);
 
 export function isTaskCommand(name: string): boolean {
   return TASK_COMMANDS.has(name);
@@ -28,6 +29,11 @@ export function handleTaskCommand(command: { name: string; args: string[] }, ser
       const id = command.args[0];
       if (!id) return 'Usage: @orc review <TASK-0001>';
       return requestReview(services.repos, id);
+    }
+    case 'sign': {
+      const id = command.args[0];
+      if (!id) return 'Usage: @orc sign <TASK-0001>';
+      return signTask(services, id);
     }
     case 'summarize': {
       const id = command.args[0];
@@ -87,7 +93,7 @@ function assignTask(services: CommandServices, taskId: string, agent: string): s
     eventType: 'assign',
     content: `assigned to ${agent}`,
   });
-  const started = services.agentSupervisor?.assignTaskChannel(agent, task) ?? false;
+  const started = services.agentSupervisor?.assignTaskChannel?.(agent, task) ?? false;
   if (!started) {
     services.irc.privmsg(
       agent,
@@ -109,6 +115,28 @@ function requestReview(repos: Repositories, taskId: string): string {
     content: 'moved to review',
   });
   return `${taskId} moved to review.`;
+}
+
+function signTask(services: CommandServices, rawTaskId: string): string {
+  const taskId = rawTaskId.toUpperCase();
+  const task = services.repos.tasks.findTask(taskId);
+  if (!task) return `No task ${taskId}.`;
+
+  services.repos.tasks.updateStatus(taskId, 'done');
+  services.repos.taskEvents.recordEvent({
+    taskId,
+    actor: 'orchestrator',
+    eventType: 'done',
+    content: 'signed off',
+  });
+  const agent = task.assignedTo ? services.repos.agents.findAgent(task.assignedTo) : null;
+  const assignTaskChannel = services.agentSupervisor?.assignTaskChannel;
+  const next = agent && assignTaskChannel
+    ? startNextQueuedTaskForAgent({ repos: services.repos, supervisor: { assignTaskChannel }, agent })
+    : null;
+  return next
+    ? `${taskId} signed off; status done; started ${next.id}.`
+    : `${taskId} signed off; status done.`;
 }
 
 function summarizeTask(repos: Repositories, taskId: string): string {

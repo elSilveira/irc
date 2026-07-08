@@ -18,9 +18,7 @@ export class ToolGateway {
     this.actor = options.actor ?? 'orchestrator';
     this.logger = options.logger;
     for (const tool of tools) {
-      if (this.tools.has(tool.name)) {
-        throw new Error(`duplicate tool: ${tool.name}`);
-      }
+      if (this.tools.has(tool.name)) throw new Error(`duplicate tool: ${tool.name}`);
       this.tools.set(tool.name, tool);
     }
   }
@@ -31,6 +29,13 @@ export class ToolGateway {
 
   has(name: string): boolean {
     return this.tools.has(name);
+  }
+
+  forWorkspace(workspaceRoot: string): ToolGateway {
+    return new ToolGateway([...this.tools.values()], { ...this.context, workspaceRoot }, {
+      actor: this.actor,
+      logger: this.logger,
+    });
   }
 
   async execute(name: string, input: unknown): Promise<ToolResult> {

@@ -147,6 +147,33 @@ test('manage_agents creates and lists agents', async () => {
   ctx.close();
 });
 
+test('manage_agents pins backlog agent context to backlog.md', async () => {
+  const ctx = makeContext();
+  const gateway = new ToolGateway([manageAgentsTool], {
+    workspaceRoot: ctx.root,
+    agents: ctx.repos.agents,
+  });
+
+  const created = await gateway.execute('manage_agents', {
+    action: 'create',
+    id: 'backlog',
+    nick: 'backlog',
+    role: 'Backlog keeper',
+    context: 'Track backlog tasks in .agents/backlog.md.',
+  });
+  assert.equal(created.ok, true);
+  assert.match((created.data as { agent: { context: string } }).agent.context, /Always use `backlog\.md`/);
+
+  const updated = await gateway.execute('manage_agents', {
+    action: 'update',
+    id: 'backlog',
+    context: 'Switch to project-backlog.md.',
+  });
+  assert.equal(updated.ok, true);
+  assert.match((updated.data as { agent: { context: string } }).agent.context, /Always use `backlog\.md`/);
+  ctx.close();
+});
+
 test('gateway logs every tool call', async () => {
   const ctx = makeContext();
   const logs: { tool: string; ok: boolean }[] = [];

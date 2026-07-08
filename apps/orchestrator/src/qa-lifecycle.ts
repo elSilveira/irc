@@ -2,6 +2,7 @@ import type { Repositories } from '@irc/db';
 import type { Agent } from '@irc/db';
 import type { IngestResult } from './task-events.js';
 import { QA_AGENT } from './qa-agent.js';
+import { startNextQueuedTaskForAgent } from './task-queue.js';
 
 export interface QaLifecycleServices {
   ingested: IngestResult;
@@ -47,11 +48,12 @@ function handoffToQa({ ingested, repos, supervisor, irc }: QaLifecycleServices):
   });
 }
 
-function announcePass({ ingested, repos, irc }: QaLifecycleServices): void {
+function announcePass({ ingested, repos, supervisor, irc }: QaLifecycleServices): void {
   const task = repos.tasks.findTask(ingested.taskId);
   if (!task) return;
   repos.tasks.updateStatus(task.id, 'done');
   irc.privmsg(task.channel, `${task.id} passed QA; final answer is ready.`);
+  startNextQueuedTask({ taskId: task.id, repos, supervisor });
 }
 
 function loopToImplementer({ ingested, repos, supervisor, irc }: QaLifecycleServices): void {
@@ -76,6 +78,13 @@ function loopToImplementer({ ingested, repos, supervisor, irc }: QaLifecycleServ
     channel: task.channel,
     title: `${task.title}\nPrevious result: ${result}\nQA feedback: ${feedback}\nFix the QA feedback and return result plus rdt again.`,
   });
+}
+
+function startNextQueuedTask(input: Pick<QaLifecycleServices, 'repos' | 'supervisor'> & { taskId: string }): void {
+  const { taskId, repos, supervisor } = input;
+  const implementer = findImplementer(repos, taskId);
+  if (!implementer) return;
+  startNextQueuedTaskForAgent({ repos, supervisor, agent: implementer });
 }
 
 function qaPrompt(title: string, result: string): string {

@@ -15,7 +15,9 @@ export interface RoutingResult {
 const ACTIVE = new Set(['ready', 'doing', 'review', 'rdt', 'testing', 'tested']);
 
 export function chooseAgentForTask(input: RoutingInput): RoutingResult | null {
-  const scored = input.agents
+  const candidates = plannerCandidates(input.agents);
+  const agents = candidates.length > 0 ? candidates : input.agents;
+  const scored = agents
     .map((agent) => ({ agent, score: scoreAgent(input.title, agent) }))
     .sort((a, b) => b.score - a.score || a.agent.id.localeCompare(b.agent.id));
 
@@ -30,6 +32,15 @@ export function chooseAgentForTask(input: RoutingInput): RoutingResult | null {
     score: best.score,
     status: active < best.agent.capacity ? 'ready' : 'queued',
   };
+}
+
+export function isPlanningAgent(agent: Pick<Agent, 'id' | 'role' | 'context' | 'skills' | 'strengths'>): boolean {
+  const text = tokenize(`${agent.id} ${agent.role} ${agent.context} ${agent.skills} ${agent.strengths}`);
+  return text.has('plan') || text.has('planner') || text.has('planning');
+}
+
+function plannerCandidates(agents: Agent[]): Agent[] {
+  return agents.filter(isPlanningAgent);
 }
 
 function scoreAgent(title: string, agent: Agent): number {

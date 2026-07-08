@@ -17,6 +17,29 @@ test('pass announces the final accepted result', () => {
   s.repos.close();
 });
 
+test('pass starts the next queued task for the implementer', () => {
+  const s = setupQaLifecycleTest();
+  const queued = s.repos.tasks.createTask('Next queued task');
+  s.repos.tasks.assignTask(queued.id, 'feature-implementer', 'queued');
+  s.repos.taskEvents.recordEvent({
+    taskId: s.task.id,
+    actor: 'FeatureImpl',
+    eventType: 'result',
+    content: 'finished first task',
+  });
+
+  handleQaLifecycle({
+    ingested: { taskId: s.task.id, eventType: 'pass' },
+    repos: s.repos,
+    supervisor: s.supervisor,
+    irc: s.irc,
+  });
+
+  assert.equal(s.repos.tasks.findTask(queued.id)?.status, 'ready');
+  assert.deepEqual(s.assigned, ['FeatureImpl:TASK-0002:Next queued task']);
+  s.repos.close();
+});
+
 test('not.pass loops the task back to the implementer with QA context', () => {
   const s = setupQaLifecycleTest();
   s.repos.taskEvents.recordEvent({

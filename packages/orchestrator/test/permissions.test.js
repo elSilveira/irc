@@ -11,7 +11,12 @@ test('allows v0 communication capabilities', () => {
   assert.equal(canAgentUseCapability('coder-agent', 'update_status'), true);
 });
 
-test('blocks execution capabilities for every agent', () => {
+test('allows BotService restart permissions', () => {
+  assert.equal(canAgentUseCapability('BotService', 'service_restart'), true);
+  assert.equal(canAgentUseCapability('BotService', 'docker_update'), true);
+});
+
+test('blocks unsafe execution capabilities for every agent', () => {
   for (const capability of blockedCapabilities) {
     assert.equal(canAgentUseCapability('coder-agent', capability), false);
   }

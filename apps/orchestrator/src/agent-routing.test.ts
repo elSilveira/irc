@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { chooseAgentForTask } from './agent-routing.js';
+import type { Task } from '@irc/db';
 
 const baseAgent = {
   id: 'a',
@@ -13,6 +14,15 @@ const baseAgent = {
   capacity: 1,
   skills: '',
 };
+
+function task(input: Partial<Task> & Pick<Task, 'id' | 'title' | 'status' | 'assignedTo'>): Task {
+  return {
+    channel: input.channel ?? input.id.toLowerCase().replace('task', '#task'),
+    projectChannel: null,
+    workspace: null,
+    ...input,
+  };
+}
 
 test('chooseAgentForTask prefers matching strengths', () => {
   const result = chooseAgentForTask({
@@ -32,7 +42,7 @@ test('chooseAgentForTask queues for the best busy agent', () => {
   const result = chooseAgentForTask({
     title: 'Fix TypeScript tests',
     agents: [{ ...baseAgent, id: 'feature', strengths: 'typescript,tests' }],
-    tasks: [{ id: 'TASK-0001', title: 'Busy', status: 'doing', channel: '#task-0001', assignedTo: 'feature' }],
+    tasks: [task({ id: 'TASK-0001', title: 'Busy', status: 'doing', assignedTo: 'feature' })],
   });
 
   assert.equal(result?.agent.id, 'feature');
@@ -43,7 +53,7 @@ test('chooseAgentForTask treats QA lifecycle statuses as active work', () => {
   const result = chooseAgentForTask({
     title: 'Add tests',
     agents: [{ ...baseAgent, id: 'impl', strengths: 'tests', capacity: 1 }],
-    tasks: [{ id: 'TASK-0001', title: 'QA', status: 'testing', channel: '#task-0001', assignedTo: 'impl' }],
+    tasks: [task({ id: 'TASK-0001', title: 'QA', status: 'testing', assignedTo: 'impl' })],
   });
 
   assert.equal(result?.status, 'queued');

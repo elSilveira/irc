@@ -72,6 +72,11 @@ alias orc-new {
   msg #control @orc new $qt($1-)
 }
 
+alias project {
+  if (!$1) { echo -a Usage: /project connect <#channel> <workspace> | return }
+  msg $iif($chan,$chan,#control) @orc project $1-
+}
+
 alias orc-agent-create {
   if (!$4) { echo -a Usage: /orc-agent-create <id> <nick> <role> <context> | return }
   msg #control @orc agent create $1 --nick $2 --role $3 --context $qt($4-)

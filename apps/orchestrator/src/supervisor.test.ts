@@ -13,6 +13,7 @@ interface FakeBot extends AgentHandle {
   started: number;
   stopped: number;
   assigned: string[];
+  joined: string[];
 }
 
 function makeFakeFactory(): { factory: BotFactory; bots: Map<string, FakeBot> } {
@@ -23,6 +24,7 @@ function makeFakeFactory(): { factory: BotFactory; bots: Map<string, FakeBot> } 
       started: 0,
       stopped: 0,
       assigned: [],
+      joined: [],
       start() {
         this.started += 1;
       },
@@ -34,6 +36,9 @@ function makeFakeFactory(): { factory: BotFactory; bots: Map<string, FakeBot> } 
       },
       resumeTaskChannel(task) {
         this.assigned.push(`resume:${task.channel}`);
+      },
+      joinChannel(channel) {
+        this.joined.push(channel);
       },
     };
     bots.set(bot.nick.toLowerCase(), bot);
@@ -175,4 +180,13 @@ test('reconcile skips reserved nicks even when present in the desired set', () =
 
   assert.deepEqual(result.started, ['alpha']);
   assert.equal(supervisor.isRunning('orchestrator'), false);
+});
+
+test('joinChannel asks a running bot to join a project channel', () => {
+  const { factory, bots } = makeFakeFactory();
+  const supervisor = makeSupervisor(factory);
+  supervisor.spawn(agent('feature', 'FeatureImpl'), ['#agents']);
+
+  assert.equal(supervisor.joinChannel('FeatureImpl', '#investments'), true);
+  assert.deepEqual(bots.get('featureimpl')!.joined, ['#investments']);
 });

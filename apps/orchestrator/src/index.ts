@@ -17,13 +17,12 @@ import { reconcileManagedAgents } from './agent-reconcile.js';
 import { handleQaLifecycle } from './qa-lifecycle.js';
 import { buildStartupChannels } from './startup-channels.js';
 import { recoverStaleTasks } from './heartbeat-recovery.js';
+import { workspaceForChannel } from './project-context.js';
 
 export async function startOrchestrator(): Promise<IrcClient> {
   const config = loadConfig();
   ensureDatabaseDir(config.database);
-  const guardian = acquireRuntimeGuardian({
-    lockPath: join(dirname(config.database), `${config.nick}.lock`),
-  });
+  const guardian = acquireRuntimeGuardian({ lockPath: join(dirname(config.database), `${config.nick}.lock`) });
   process.once('exit', () => guardian.release());
 
   const repos = createRepositories(config.database);
@@ -32,7 +31,6 @@ export async function startOrchestrator(): Promise<IrcClient> {
   };
   const { runtime, codexClient } = buildRuntime(config, onSwitch);
   const gateway = buildGateway(config, repos);
-
   const brain = selectBrain(config, runtime, codexClient, gateway, repos);
 
   const supervisor = new AgentSupervisor({
@@ -42,15 +40,17 @@ export async function startOrchestrator(): Promise<IrcClient> {
     conversations: repos.conversations,
     gateway,
     workspace: config.workspace,
+    workspaceForChannel: (channel) => workspaceForChannel(repos, channel, config.workspace),
     reservedNicks: [config.nick],
   });
-  const existingAgents = repos.agents.listAgents().map(toSummary);
-  const startupChannels = buildStartupChannels({ configured: config.channels, tasks: repos.tasks.listTasks() });
-  const startup = supervisor.reconcile(existingAgents, startupChannels);
+  const startupChannels = buildStartupChannels({
+    configured: config.channels,
+    projects: repos.projects.listProjects(),
+    tasks: repos.tasks.listTasks(),
+  });
+  const startup = supervisor.reconcile(repos.agents.listAgents().map(toSummary), startupChannels);
 
-  console.error(
-    `[orchestrator] brain: ${brain.constructor.name} | providers: ${runtime.configuredProviders.join(', ') || '(none)'} | tools: ${gateway.names().join(', ')} | agents online: ${startup.unchanged + startup.started.length}`,
-  );
+  console.error(`[orchestrator] brain: ${brain.constructor.name} | providers: ${runtime.configuredProviders.join(', ') || '(none)'} | tools: ${gateway.names().join(', ')} | agents online: ${startup.unchanged + startup.started.length}`);
 
   const irc = new IrcClient({
     host: config.host,
@@ -74,12 +74,7 @@ export async function startOrchestrator(): Promise<IrcClient> {
   }, config.heartbeatIntervalMs);
 
   setInterval(() => {
-    reconcileManagedAgents({
-      repos,
-      supervisor,
-      channels: ['#agents'],
-      log: (message) => console.error(message),
-    });
+    reconcileManagedAgents({ repos, supervisor, channels: ['#agents'], log: (message) => console.error(message) });
   }, 2_000);
 
   return irc;
@@ -103,18 +98,11 @@ async function handlePrivmsg(
   const ingested = ingestTaskEvent(text, sender, repos, target);
   if (ingested) {
     handleQaLifecycle({ ingested, repos, supervisor, irc });
-    if (ingested.approvalId) {
-      irc.privmsg(target, `${ingested.taskId} blocked; waiting for approval. Use @orc approve ${ingested.taskId}.`);
-    }
+    if (ingested.approvalId) irc.privmsg(target, `${ingested.taskId} blocked; waiting for approval. Use @orc approve ${ingested.taskId}.`);
     return;
   }
 
-  if (isManagedAgentDirectMessage({
-    botNick: config.nick,
-    sender,
-    target,
-    agentNicks: repos.agents.listAgents().map((agent) => agent.nick),
-  })) {
+  if (isManagedAgentDirectMessage({ botNick: config.nick, sender, target, agentNicks: repos.agents.listAgents().map((agent) => agent.nick) })) {
     console.error(`[orchestrator] ignored unstructured DM from managed agent ${sender}`);
     return;
   }
@@ -123,7 +111,7 @@ async function handlePrivmsg(
   if (routed.kind === 'ignore') return;
 
   if (routed.kind === 'command' && routed.command) {
-    handleCommand(routed.command, { irc, repos, nick: config.nick, channels: config.channels, agentSupervisor: supervisor });
+    handleCommand(routed.command, { irc, repos, nick: config.nick, channels: [routed.replyTarget], agentSupervisor: supervisor });
     return;
   }
 
@@ -131,33 +119,24 @@ async function handlePrivmsg(
     const contextKey = target.toLowerCase() === config.nick.toLowerCase()
       ? `orchestrator:dm:${sender}`
       : `orchestrator:channel:${target}`;
-    const context: BrainContext = { contextKey, sender, channel: target };
+    const context: BrainContext = {
+      contextKey,
+      sender,
+      channel: target,
+      workspace: workspaceForChannel(repos, target, config.workspace),
+    };
 
     await answerWithBrain(irc, routed.replyTarget, brain, routed.prompt, context);
 
     const isDm = target.toLowerCase() === config.nick.toLowerCase();
-    reconcileManagedAgents({
-      repos,
-      supervisor,
-      channels: isDm ? ['#agents'] : ['#agents', target],
-      greetChannel: isDm ? '#agents' : target,
-      log: (message) => console.error(message),
-    });
+    reconcileManagedAgents({ repos, supervisor, channels: isDm ? ['#agents'] : ['#agents', target], greetChannel: isDm ? '#agents' : target, log: (message) => console.error(message) });
   }
 }
 
-async function answerWithBrain(
-  irc: IrcClient,
-  replyTarget: string,
-  brain: Brain,
-  prompt: string,
-  context: BrainContext,
-): Promise<string | undefined> {
+async function answerWithBrain(irc: IrcClient, replyTarget: string, brain: Brain, prompt: string, context: BrainContext): Promise<string | undefined> {
   try {
     const output = await brain.respond(prompt, context);
-    for (const chunk of chunkLines(output, 400)) {
-      irc.privmsg(replyTarget, chunk);
-    }
+    for (const chunk of chunkLines(output, 400)) irc.privmsg(replyTarget, chunk);
     return output;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

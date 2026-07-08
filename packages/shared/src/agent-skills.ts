@@ -8,7 +8,26 @@ export interface AgentSkillPack {
   id: string;
   skills: string;
   match: string[];
+  tools: string[];
+  graphNode: string;
 }
+
+export interface AgentSpecializationInput {
+  id?: string;
+  nick?: string;
+  role: string;
+  context: string;
+  skills?: string;
+}
+
+export interface AgentGraphRoute {
+  node: string;
+  chainPrefix: string;
+  channelScope: string;
+  ragScope: string;
+}
+
+const READ_TOOLS = ['list_files', 'read_file', 'git_status', 'git_diff'];
 
 export const AGENT_SKILLS: readonly AgentSkill[] = [
   { id: 'implementation', title: 'Implementation', description: 'Builds scoped features and fixes with focused production edits.' },
@@ -29,11 +48,11 @@ export const AGENT_SKILLS: readonly AgentSkill[] = [
 ];
 
 export const AGENT_SKILL_PACKS: readonly AgentSkillPack[] = [
-  { id: 'implementation', skills: 'implementation,tdd,repo-editing', match: ['implement', 'code', 'feature'] },
-  { id: 'qa', skills: 'qa,testing,review', match: ['qa', 'test', 'validate', 'review'] },
-  { id: 'orchestration', skills: 'orchestration,planning,routing', match: ['manager', 'orchestr', 'route'] },
-  { id: 'research', skills: 'research,docs,context', match: ['research', 'readme', 'docs'] },
-  { id: 'operations', skills: 'ops,logs,diagnostics', match: ['ops', 'runtime', 'logs'] },
+  { id: 'implementation', skills: 'implementation,tdd,repo-editing', match: ['implement', 'code', 'feature', 'fix'], tools: [...READ_TOOLS, 'write_file', 'run_verification'], graphNode: 'implementation' },
+  { id: 'qa', skills: 'qa,testing,review', match: ['qa', 'test', 'validate', 'review'], tools: [...READ_TOOLS, 'run_verification'], graphNode: 'qa' },
+  { id: 'orchestration', skills: 'orchestration,planning,routing', match: ['manager', 'orchestr', 'route', 'plan'], tools: [...READ_TOOLS, 'manage_agents'], graphNode: 'orchestration' },
+  { id: 'research', skills: 'research,docs,context', match: ['research', 'readme', 'docs', 'context'], tools: ['list_files', 'read_file', 'git_status', 'git_diff'], graphNode: 'research' },
+  { id: 'operations', skills: 'ops,logs,diagnostics', match: ['ops', 'runtime', 'logs', 'diagnose'], tools: ['list_files', 'read_file', 'git_status', 'git_diff', 'run_verification'], graphNode: 'operations' },
 ];
 
 export function listAgentSkills(): readonly AgentSkill[] {
@@ -45,7 +64,49 @@ export function listAgentSkillPacks(): string[] {
 }
 
 export function inferAgentSkills(input: { role: string; context: string }): string {
+  return findSkillPack(input)?.skills ?? 'research,docs,context';
+}
+
+export function inferAgentTools(input: AgentSpecializationInput): string[] {
+  const pack = findSkillPack(input);
+  if (pack) return [...pack.tools];
+  const skills = skillSet(input);
+  const tools = new Set<string>(['list_files', 'read_file']);
+  if (hasAny(skills, ['repo-editing', 'implementation'])) tools.add('write_file');
+  if (hasAny(skills, ['tdd', 'testing', 'qa', 'ops', 'diagnostics'])) tools.add('run_verification');
+  if (hasAny(skills, ['orchestration', 'routing', 'planning'])) tools.add('manage_agents');
+  return [...tools];
+}
+
+export function inferAgentGraphRoute(input: AgentSpecializationInput): AgentGraphRoute {
+  const pack = findSkillPack(input);
+  const skills = normalizeSkills(input.skills || pack?.skills || inferAgentSkills(input));
+  const node = pack?.graphNode ?? skills[0] ?? 'research';
+  const nick = input.nick || input.id || 'agent';
+  return {
+    node,
+    chainPrefix: `agent:${nick}`,
+    channelScope: `#${node}`,
+    ragScope: skills.join(':'),
+  };
+}
+
+function findSkillPack(input: { role: string; context: string; skills?: string }): AgentSkillPack | undefined {
+  const skills = normalizeSkills(input.skills);
+  const explicit = AGENT_SKILL_PACKS.find((pack) => normalizeSkills(pack.skills).every((skill) => skills.includes(skill)));
+  if (explicit) return explicit;
   const text = `${input.role} ${input.context}`.toLowerCase();
-  const pack = AGENT_SKILL_PACKS.find((candidate) => candidate.match.some((word) => text.includes(word)));
-  return pack?.skills ?? 'general,communication,context';
+  return AGENT_SKILL_PACKS.find((candidate) => candidate.match.some((word) => text.includes(word)));
+}
+
+function skillSet(input: { role: string; context: string; skills?: string }): Set<string> {
+  return new Set(normalizeSkills(input.skills || inferAgentSkills(input)));
+}
+
+function normalizeSkills(value?: string): string[] {
+  return (value ?? '').toLowerCase().split(',').map((part) => part.trim()).filter(Boolean);
+}
+
+function hasAny(values: Set<string>, expected: string[]): boolean {
+  return expected.some((value) => values.has(value));
 }

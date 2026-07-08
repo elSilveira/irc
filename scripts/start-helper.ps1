@@ -20,12 +20,18 @@ function Start-BotProcess {
     & cmd.exe /d /c "start ""irc-$Nick"" /min cmd.exe /d /c ""$redirected"""
 }
 
+function Start-ServiceControlLoop {
+    $script = Join-Path $repoRoot "scripts\service-control-loop.ps1"
+    & cmd.exe /d /c "start ""irc-service-control"" /min powershell.exe -NoProfile -ExecutionPolicy Bypass -File ""$script"""
+}
+
 Push-Location $repoRoot
 try {
+    Start-ServiceControlLoop
     Start-BotProcess -Nick "helper"
     Start-BotProcess -Nick "BotService"
 
-    Write-Output "Started helper and BotService."
+    Write-Output "Started helper, BotService, and service-control loop."
 }
 finally {
     Pop-Location

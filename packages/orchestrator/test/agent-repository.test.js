@@ -23,6 +23,9 @@ test('persists agent context in sqlite', () => {
     weaknesses: '',
     capacity: 1,
     skills: '',
+    modelProvider: '',
+    modelAuth: '',
+    modelName: '',
   });
 });
 
@@ -65,4 +68,32 @@ test('lists, updates, and deletes agents', () => {
   assert.equal(repository.deleteAgent('a'), true);
   assert.equal(repository.findAgent('a'), null);
   assert.equal(repository.deleteAgent('missing'), false);
+});
+
+test('stores per-agent model routing fields', () => {
+  const repository = createAgentRepository(':memory:');
+
+  const created = repository.createAgent({
+    id: 'helper-agent',
+    nick: 'helper',
+    role: 'helper',
+    context: 'Helps users',
+    modelProvider: 'glm-5.2-z-ai',
+    modelAuth: 'login',
+    modelName: 'glm-5.2',
+  });
+
+  assert.equal(created.modelProvider, 'glm-5.2-z-ai');
+  assert.equal(created.modelAuth, 'login');
+  assert.equal(created.modelName, 'glm-5.2');
+
+  const updated = repository.updateAgent('helper-agent', {
+    modelProvider: 'ollama',
+    modelAuth: 'api-key',
+    modelName: 'llama3.1',
+  });
+
+  assert.equal(updated.modelProvider, 'ollama');
+  assert.equal(updated.modelAuth, 'api-key');
+  assert.equal(updated.modelName, 'llama3.1');
 });

@@ -8,6 +8,15 @@ export interface Agent {
   weaknesses: string;
   capacity: number;
   skills: string;
+  modelProvider?: string;
+  modelAuth?: string;
+  modelName?: string;
+}
+
+export interface Project {
+  channel: string;
+  name: string;
+  workspace: string;
 }
 
 export interface Task {
@@ -16,6 +25,8 @@ export interface Task {
   status: string;
   channel: string;
   assignedTo: string | null;
+  projectChannel: string | null;
+  workspace: string | null;
 }
 
 export interface ConversationThread {

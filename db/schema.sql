@@ -8,7 +8,18 @@ CREATE TABLE IF NOT EXISTS agents (
   weaknesses TEXT NOT NULL DEFAULT '',
   capacity INTEGER NOT NULL DEFAULT 1,
   skills TEXT NOT NULL DEFAULT '',
+  model_provider TEXT NOT NULL DEFAULT '',
+  model_auth TEXT NOT NULL DEFAULT '',
+  model_name TEXT NOT NULL DEFAULT '',
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS projects (
+  channel TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  workspace TEXT NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS tasks (
@@ -17,8 +28,11 @@ CREATE TABLE IF NOT EXISTS tasks (
   status TEXT NOT NULL,
   channel TEXT NOT NULL,
   assigned_to TEXT,
+  project_channel TEXT,
+  workspace TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (project_channel) REFERENCES projects(channel)
 );
 
 CREATE TABLE IF NOT EXISTS task_events (

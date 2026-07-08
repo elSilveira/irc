@@ -13,9 +13,7 @@ export interface AgentBotOptions {
   host: string;
   port: number;
   agent: { id: string; nick: string; role: string; context: string; skills?: string };
-  /** Channels the agent should join. */
   channels: string[];
-  /** Channel where the agent posts its online greeting. Defaults to channels[0]. */
   greetChannel?: string;
   codex: CodexClient;
   conversations: ConversationRepository;
@@ -23,13 +21,9 @@ export interface AgentBotOptions {
   workspace: string;
   brain?: Brain;
   taskHeartbeatMs?: number;
+  workspaceForChannel?: (channel: string) => string;
 }
 
-/**
- * A created agent brought to life on IRC. Connects under the agent nick, joins
- * its channels, announces itself, and answers DMs and @mentions by relaying to
- * Codex with one persisted thread per (agent, context).
- */
 export class AgentBot {
   readonly nick: string;
   private readonly options: AgentBotOptions;
@@ -65,9 +59,7 @@ export class AgentBot {
           console.error(`[agent:${this.nick}] online in ${this.options.channels.join(', ')}`);
         },
         onLine: (line) => {
-          this.handle(line).catch((error) => {
-            console.error(`[agent:${this.nick}] handler error: ${error.message}`);
-          });
+          this.handle(line).catch((error) => console.error(`[agent:${this.nick}] handler error: ${error.message}`));
         },
         onError: (error) => console.error(`[agent:${this.nick}] irc error: ${error.message}`),
       },
@@ -76,7 +68,6 @@ export class AgentBot {
     return this.irc;
   }
 
-  /** Disconnect the agent from IRC. Idempotent. */
   stop(): void {
     if (!this.irc) return;
     this.irc.quit(`${this.nick} going offline`);
@@ -84,7 +75,7 @@ export class AgentBot {
     this.irc = undefined;
   }
 
-  assignTaskChannel(task: { id: string; title: string; channel: string }): void {
+  assignTaskChannel(task: { id: string; title: string; channel: string; workspace?: string | null }): void {
     if (!this.irc) return;
     this.irc.join(task.channel);
     this.irc.privmsg(task.channel, `[task:${task.id}] [type:ack] ${this.nick} assigned: ${task.title}`);
@@ -96,7 +87,12 @@ export class AgentBot {
     });
   }
 
-  resumeTaskChannel(task: { id: string; title: string; channel: string }, reason: string): void {
+  joinChannel(channel: string): void {
+    if (!this.irc) return;
+    this.irc.join(channel);
+  }
+
+  resumeTaskChannel(task: { id: string; title: string; channel: string; workspace?: string | null }, reason: string): void {
     if (!this.irc) return;
     this.irc.join(task.channel);
     if (this.activeTasks.has(task.id)) {
@@ -111,9 +107,10 @@ export class AgentBot {
     });
   }
 
-  private async startTask(task: { id: string; title: string; channel: string }, mode: 'start' | 'resume' = 'start'): Promise<void> {
+  private async startTask(task: { id: string; title: string; channel: string; workspace?: string | null }, mode: 'start' | 'resume' = 'start'): Promise<void> {
     this.activeTasks.add(task.id);
     const prompt = buildTaskPrompt(task, mode);
+    const workspace = task.workspace ?? this.options.workspace;
     const heartbeat = setInterval(() => {
       this.irc?.privmsg(task.channel, `[task:${task.id}] [type:htb] still working`);
     }, this.options.taskHeartbeatMs ?? 25_000);
@@ -121,20 +118,18 @@ export class AgentBot {
       contextKey: `agent:${this.nick}:task:${task.id}`,
       sender: 'orchestrator',
       channel: task.channel,
+      workspace,
     }).finally(() => {
       clearInterval(heartbeat);
       this.activeTasks.delete(task.id);
     });
-    for (const chunk of outgoingLines(ensureTaskProtocolOutput(task.id, output), 400)) {
-      this.irc?.privmsg(task.channel, chunk);
-    }
+    for (const chunk of outgoingLines(ensureTaskProtocolOutput(task.id, output), 400)) this.irc?.privmsg(task.channel, chunk);
   }
 
   private async handle(line: ParsedLine): Promise<void> {
     if (line.command !== 'PRIVMSG') return;
     const [target, text] = line.params;
     if (!target || text === undefined) return;
-
     const sender = nickFromPrefix(line.prefix);
     if (sender.toLowerCase() === this.nick.toLowerCase()) return;
 
@@ -147,10 +142,9 @@ export class AgentBot {
         contextKey: turn.contextKey,
         sender,
         channel: isDm ? undefined : target,
+        workspace: isDm ? undefined : this.options.workspaceForChannel?.(target),
       });
-      for (const chunk of outgoingLines(ensureChainRef(turn.chainRef, output), 400)) {
-        this.irc?.privmsg(turn.replyTarget, chunk);
-      }
+      for (const chunk of outgoingLines(ensureChainRef(turn.chainRef, output), 400)) this.irc?.privmsg(turn.replyTarget, chunk);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       console.error(`[agent:${this.nick}] codex error: ${message}`);
@@ -160,26 +154,28 @@ export class AgentBot {
 
   private greeting(): string {
     const ctx = truncate(this.options.agent.context, 120);
-    return `${this.nick} online — role: ${this.options.agent.role}. ${ctx}`.trim();
+    return `${this.nick} online - role: ${this.options.agent.role}. ${ctx}`.trim();
   }
 }
 
-function buildTaskPrompt(task: { id: string; title: string; channel: string }, mode: 'start' | 'resume'): string {
+function buildTaskPrompt(task: { id: string; title: string; channel: string; workspace?: string | null }, mode: 'start' | 'resume'): string {
   const continueInstruction = mode === 'resume'
     ? 'Do not emit another assignment line; continue with [type:htb] or [type:wip], then [type:result] and [type:rdt].'
     : 'Do not stop after ack; continue until you emit [type:wip], [type:result], and [type:rdt].';
   return [
     `[task:${task.id}] ${mode === 'resume' ? 'Resume' : 'Start'} this assigned task in ${task.channel}: ${task.title}`,
+    task.workspace ? `Project workspace: ${task.workspace}` : undefined,
+    'Always plan before doing the task: before code edits, improve the task prompt before feature or implementation work, then coordinate with feature and QA agents to match expectations.',
     'Read the repo context you need, then report progress with task protocol lines.',
     'Use IRC_TOOL write_file for code edits and run_verification for checks.',
     'Do not say you are read-only while IRC_TOOL write_file is available.',
     continueInstruction,
     'Use [type:blocked] only when a human decision is required.',
-  ].join('\n');
+  ].filter(Boolean).join('\n');
 }
 
 function truncate(value: string, size: number): string {
-  return value.length > size ? `${value.slice(0, size)}…` : value;
+  return value.length > size ? `${value.slice(0, size)}...` : value;
 }
 
 function chunkLines(text: string, size: number): string[] {
@@ -195,16 +191,11 @@ function chunkLines(text: string, size: number): string[] {
 }
 
 function outgoingLines(text: string, size: number): string[] {
-  return text
-    .split(/\r?\n/)
-    .flatMap(splitTaskProtocolLines)
-    .flatMap((line) => chunkLines(line, size));
+  return text.split(/\r?\n/).flatMap(splitTaskProtocolLines).flatMap((line) => chunkLines(line, size));
 }
 
 function splitTaskProtocolLines(text: string): string[] {
-  const starts = [...text.matchAll(/\[task:[^\]]+\]\s*(?:\[from:[^\]]+\]\s*)?\[type:[^\]]+\]/g)].map(
-    (match) => match.index ?? 0,
-  );
+  const starts = [...text.matchAll(/\[task:[^\]]+\]\s*(?:\[from:[^\]]+\]\s*)?\[type:[^\]]+\]/g)].map((match) => match.index ?? 0);
   if (starts.length <= 1) return [text];
   return starts.map((start, index) => text.slice(start, starts[index + 1]).trim()).filter(Boolean);
 }

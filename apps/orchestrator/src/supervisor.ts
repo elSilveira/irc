@@ -11,15 +11,12 @@ export interface AgentSummary {
   skills?: string;
 }
 
-/**
- * The lifecycle surface the supervisor needs from a running agent. `AgentBot`
- * satisfies this structurally; tests inject fakes that record start/stop.
- */
 export interface AgentHandle {
   readonly nick: string;
   start(): void;
   stop(): void;
-  assignTaskChannel(task: { id: string; title: string; channel: string }): void;
+  joinChannel(channel: string): void;
+  assignTaskChannel(task: { id: string; title: string; channel: string; workspace?: string | null }): void;
   resumeTaskChannel(task: { id: string; title: string; channel: string }, reason: string): void;
 }
 
@@ -38,18 +35,11 @@ export interface SupervisorDeps {
   conversations: ConversationRepository;
   gateway: ToolGateway;
   workspace: string;
-  /** Nicks that must never be spawned as agents (e.g. the orchestrator itself). */
+  workspaceForChannel?: (channel: string) => string;
   reservedNicks?: string[];
-  /** Inject a custom bot factory (testing). Defaults to a real `AgentBot`. */
   createBot?: BotFactory;
 }
 
-/**
- * Owns the running IRC presence of created agents. Spawning is idempotent per
- * nick so repeated create calls (or restarts) do not double-connect an agent.
- * `reconcile()` keeps the running set in sync with the `agents` table, starting
- * new agents and stopping deleted ones.
- */
 export class AgentSupervisor {
   private readonly bots = new Map<string, AgentHandle>();
   private readonly reserved: Set<string>;
@@ -68,7 +58,7 @@ export class AgentSupervisor {
     return [...this.bots.values()].map((bot) => bot.nick);
   }
 
-  spawn(agent: AgentSummary, channels: string[], greetChannel?: string): AgentHandle | null {
+  spawn(agent: AgentSummary, channels: string[], greetChannel?: string, workspace?: string): AgentHandle | null {
     const key = agent.nick.toLowerCase();
     if (this.bots.has(key)) return this.bots.get(key)!;
     if (this.reserved.has(key)) return null;
@@ -82,7 +72,8 @@ export class AgentSupervisor {
       codex: this.deps.codex,
       conversations: this.deps.conversations,
       gateway: this.deps.gateway,
-      workspace: this.deps.workspace,
+      workspace: workspace ?? this.deps.workspace,
+      workspaceForChannel: this.deps.workspaceForChannel,
     });
 
     bot.start();
@@ -90,7 +81,6 @@ export class AgentSupervisor {
     return bot;
   }
 
-  /** Stop a running agent by nick. Returns true if a bot was stopped. */
   stop(nick: string): boolean {
     const key = nick.toLowerCase();
     const bot = this.bots.get(key);
@@ -100,10 +90,17 @@ export class AgentSupervisor {
     return true;
   }
 
-  assignTaskChannel(nick: string, task: { id: string; title: string; channel: string }): boolean {
+  assignTaskChannel(nick: string, task: { id: string; title: string; channel: string; workspace?: string | null }): boolean {
     const bot = this.bots.get(nick.toLowerCase());
     if (!bot) return false;
     bot.assignTaskChannel(task);
+    return true;
+  }
+
+  joinChannel(nick: string, channel: string, _workspace?: string): boolean {
+    const bot = this.bots.get(nick.toLowerCase());
+    if (!bot) return false;
+    bot.joinChannel(channel);
     return true;
   }
 
@@ -114,12 +111,7 @@ export class AgentSupervisor {
     return true;
   }
 
-  /**
-   * Bring the running set in sync with `agents`: start agents present in the
-   * list but not running, and stop agents running but no longer listed (e.g.
-   * deleted via BotService). Idempotent and safe to call repeatedly.
-   */
-  reconcile(agents: AgentSummary[], channels: string[], greetChannel?: string): ReconcileResult {
+  reconcile(agents: AgentSummary[], channels: string[], greetChannel?: string, workspace?: string): ReconcileResult {
     const desired = new Map<string, AgentSummary>();
     for (const agent of agents) desired.set(agent.nick.toLowerCase(), agent);
 
@@ -132,7 +124,7 @@ export class AgentSupervisor {
         unchanged++;
         continue;
       }
-      this.spawn(agent, channels, greetChannel);
+      this.spawn(agent, channels, greetChannel, workspace);
       started.push(agent.nick);
     }
 

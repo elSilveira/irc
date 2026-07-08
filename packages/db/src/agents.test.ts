@@ -21,6 +21,9 @@ test('createRepositories creates an agent and finds it', () => {
   assert.equal(agent.weaknesses, 'frontend');
   assert.equal(agent.capacity, 2);
   assert.equal(agent.skills, 'orchestration,planning');
+  assert.equal(agent.modelProvider, '');
+  assert.equal(agent.modelAuth, '');
+  assert.equal(agent.modelName, '');
   assert.deepEqual(repos.agents.findAgent('manager-agent'), agent);
   repos.close();
 });
@@ -60,5 +63,29 @@ test('listAgents returns every agent', () => {
   repos.agents.createAgent({ id: 'a', nick: 'a', role: 'r', context: 'c' });
   repos.agents.createAgent({ id: 'b', nick: 'b', role: 'r', context: 'c' });
   assert.equal(repos.agents.listAgents().length, 2);
+  repos.close();
+});
+
+test('agents can persist per-agent model selection', () => {
+  const repos = createRepositories(':memory:');
+  repos.agents.createAgent({
+    id: 'botservice',
+    nick: 'BotService',
+    role: 'service',
+    context: 'Manages agents',
+    modelProvider: 'glm-5.2-z-ai',
+    modelAuth: 'api-key',
+    modelName: 'glm-5.2',
+  });
+
+  const updated = repos.agents.updateAgent('botservice', {
+    modelProvider: 'codex',
+    modelAuth: 'login',
+    modelName: 'gpt-5-codex',
+  });
+
+  assert.equal(updated.modelProvider, 'codex');
+  assert.equal(updated.modelAuth, 'login');
+  assert.equal(updated.modelName, 'gpt-5-codex');
   repos.close();
 });

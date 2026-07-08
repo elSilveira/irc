@@ -12,6 +12,11 @@ test('allows scoped implementation capabilities', () => {
   assert.deepEqual(canUseCapability('orchestrator', 'run_verification'), { ok: true });
 });
 
+test('allows BotService restart and Docker update capabilities', () => {
+  assert.deepEqual(canUseCapability('BotService', 'service_restart'), { ok: true });
+  assert.deepEqual(canUseCapability('BotService', 'docker_update'), { ok: true });
+});
+
 test('blocks execution capabilities', () => {
   assert.equal(canUseCapability('orchestrator', 'shell').ok, false);
   assert.equal(canUseCapability('orchestrator', 'deploy').ok, false);

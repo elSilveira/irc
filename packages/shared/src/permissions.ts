@@ -12,6 +12,8 @@ export const ALLOWED_CAPABILITIES = Object.freeze([
   'ask_context',
   'summarize',
   'propose_action',
+  'service_restart',
+  'docker_update',
   // tool-calling capabilities granted to the orchestrator in v1
   'list_files',
   'read_file',

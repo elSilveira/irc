@@ -46,9 +46,7 @@ const DEFAULT_SYSTEM_PROMPT = [
 ].join('\n');
 
 export class CodexBrain implements Brain {
-  private readonly options: Required<Omit<CodexBrainOptions, 'systemPrompt'>> & {
-    systemPrompt: string;
-  };
+  private readonly options: Required<Omit<CodexBrainOptions, 'systemPrompt'>> & { systemPrompt: string };
 
   constructor(options: CodexBrainOptions) {
     this.options = {
@@ -64,8 +62,10 @@ export class CodexBrain implements Brain {
   async respond(prompt: string, context: BrainContext): Promise<string> {
     const existing = this.options.conversations.findThread(context.contextKey);
     const threadId = existing?.threadId;
+    const workspace = context.workspace ?? this.options.workspace;
+    const gateway = context.workspace ? this.options.gateway.forWorkspace(context.workspace) : this.options.gateway;
 
-    const framed = `${this.options.systemPrompt}\n\nWorkspace: ${this.options.workspace}\n\nUser request: ${prompt}`;
+    const framed = `${this.options.systemPrompt}\n\nWorkspace: ${workspace}\n\nUser request: ${prompt}`;
     const originalRequest = prompt;
     let currentPrompt = framed;
     let lastText = '';
@@ -82,7 +82,7 @@ export class CodexBrain implements Brain {
         return clean(lastText);
       }
 
-      const toolResult = await this.options.gateway.execute(toolCall.tool, toolCall.input);
+      const toolResult = await gateway.execute(toolCall.tool, toolCall.input);
       currentPrompt = [
         `Original request: ${originalRequest}`,
         `You called ${toolCall.tool} with ${JSON.stringify(toolCall.input)}.`,
@@ -124,19 +124,13 @@ export function parseToolCall(text: string): ParsedToolCall | null {
       if (parsed.tool && parsed.input && typeof parsed.input === 'object') {
         return { tool: parsed.tool, input: parsed.input as Record<string, unknown> };
       }
-    } catch {
-      // malformed tool line — ignore and keep scanning
-    }
+    } catch {}
   }
   return null;
 }
 
 function clean(text: string): string {
-  return text
-    .split('\n')
-    .filter((line) => !TOOL_LINE.test(line))
-    .join('\n')
-    .trim();
+  return text.split('\n').filter((line) => !TOOL_LINE.test(line)).join('\n').trim();
 }
 
 function isMissingThread(error: unknown): boolean {

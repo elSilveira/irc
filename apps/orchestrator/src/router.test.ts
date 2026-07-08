@@ -37,6 +37,40 @@ test('routes deterministic @orc commands', () => {
   assert.deepEqual(routed.command, { name: 'agents', args: [] });
 });
 
+test('routes sign as a deterministic @orc command', () => {
+  const routed = routeOrchestratorMessage({
+    botNick: 'orchestrator',
+    sender: 'eduardo',
+    target: '#control',
+    text: '@orc sign task-0011',
+  });
+  assert.equal(routed.kind, 'command');
+  assert.deepEqual(routed.command, { name: 'sign', args: ['task-0011'] });
+});
+
+test('routes slash project command as a deterministic command', () => {
+  const routed = routeOrchestratorMessage({
+    botNick: 'orchestrator',
+    sender: 'eduardo',
+    target: '#client-a',
+    text: '/project connect client-a C:/work/client-a',
+  });
+  assert.equal(routed.kind, 'command');
+  assert.deepEqual(routed.command, { name: 'project', args: ['connect', 'client-a', 'C:/work/client-a'] });
+  assert.equal(routed.replyTarget, '#client-a');
+});
+
+test('routes join as a deterministic @orc command', () => {
+  const routed = routeOrchestratorMessage({
+    botNick: 'orchestrator',
+    sender: 'eduardo',
+    target: '#control',
+    text: '@orc join #investments all',
+  });
+  assert.equal(routed.kind, 'command');
+  assert.deepEqual(routed.command, { name: 'join', args: ['#investments', 'all'] });
+});
+
 test('routes unknown @orc subcommand to chat', () => {
   const routed = routeOrchestratorMessage({
     botNick: 'orchestrator',
