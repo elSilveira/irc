@@ -13,6 +13,7 @@ const baseAgent = {
   weaknesses: '',
   capacity: 1,
   skills: '',
+  channels: '',
 };
 
 function task(input: Partial<Task> & Pick<Task, 'id' | 'title' | 'status' | 'assignedTo'>): Task {

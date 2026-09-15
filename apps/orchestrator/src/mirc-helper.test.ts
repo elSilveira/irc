@@ -26,3 +26,37 @@ test("project alias sends project commands to the orchestrator", () => {
   assert.match(helperScript, /Usage: \/project connect <#channel> <workspace>/);
   assert.match(helperScript, /msg \$iif\(\$chan,\$chan,#control\) @orc project \$1-/);
 });
+
+test("agents modal refreshes from actual orchestrator output and loads context", () => {
+  assert.match(helperScript, /alias agents \{/);
+  assert.match(helperScript, /on \*:dialog:eduardoirc_agents:init:0:\{/);
+  assert.match(helperScript, /did -r eduardoirc_agents 10 \| msg #control @orc agents/);
+  assert.doesNotMatch(helperScript, /did -a eduardoirc_agents 10 feature-implementer/);
+  assert.match(helperScript, /on \*:TEXT:Agents:\*:#control:\{/);
+  assert.match(helperScript, /did -r eduardoirc_agents 10/);
+  assert.match(helperScript, /did -a eduardoirc_agents 10 %row/);
+  assert.match(helperScript, /text "Channels", 45/);
+  assert.match(helperScript, /edit "", 25, .*autohs/);
+  assert.match(helperScript, /\$regex\(agentctx,%line,\/context="\(\[\^"\]\*\)"\//);
+  assert.match(helperScript, /did -ra eduardoirc_agents 31 \$regml\(agentctx,1\)/);
+  assert.match(helperScript, /msg #control @orc agent update %id --nick %nick --role %role --context \$qt\(%context\) --skills %skills --channels %channels/);
+});
+
+test("agents modal appends continuation rows from chunked orchestrator output", () => {
+  assert.match(helperScript, /on \*:TEXT:Agents:\*:#control:\{/);
+  assert.match(helperScript, /on \*:TEXT:\*:#control:\{/);
+  assert.match(helperScript, /set %eduardoirc_agents_loading 1/);
+  assert.match(helperScript, /unset %eduardoirc_agents_loading/);
+  assert.match(helperScript, /if \(%eduardoirc_agents_loading && \$dialog\(eduardoirc_agents\) && \$chr\(124\) isin \$1-\)/);
+});
+
+test("agents modal exposes selectable skills beside the editable skills field", () => {
+  assert.match(helperScript, /list 60, .*size hsbar/);
+  assert.match(helperScript, /button "Add skill", 61/);
+  assert.match(helperScript, /button "Clear skills", 62/);
+  assert.match(helperScript, /on \*:dialog:eduardoirc_agents:init:0:\{ did -r eduardoirc_agents 10 \| did -r eduardoirc_agents 60/);
+  assert.match(helperScript, /did -a eduardoirc_agents 60 implementation: Builds scoped features/);
+  assert.match(helperScript, /var %skill = \$gettok\(\$did\(eduardoirc_agents,60\)\.seltext,1,58\)/);
+  assert.match(helperScript, /did -ra eduardoirc_agents 29 \$addtok\(%skills,%skill,44\)/);
+  assert.match(helperScript, /if \(\$did == 62\) \{ did -r eduardoirc_agents 29 \}/);
+});

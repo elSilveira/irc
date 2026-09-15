@@ -13,6 +13,7 @@ test('createRepositories creates an agent and finds it', () => {
     weaknesses: 'frontend',
     capacity: 2,
     skills: 'orchestration,planning',
+    channels: '#control,#planning',
   });
 
   assert.equal(agent.id, 'manager-agent');
@@ -21,6 +22,7 @@ test('createRepositories creates an agent and finds it', () => {
   assert.equal(agent.weaknesses, 'frontend');
   assert.equal(agent.capacity, 2);
   assert.equal(agent.skills, 'orchestration,planning');
+  assert.equal(agent.channels, '#control,#planning');
   assert.equal(agent.modelProvider, '');
   assert.equal(agent.modelAuth, '');
   assert.equal(agent.modelName, '');
@@ -37,7 +39,7 @@ test('createAgent rejects duplicate ids', () => {
   repos.close();
 });
 
-test('updateAgent edits role and context', () => {
+test('updateAgent edits role, context, and channel membership', () => {
   const repos = createRepositories(':memory:');
   repos.agents.createAgent({ id: 'qa', nick: 'qa-agent', role: 'coder', context: 'old' });
   const updated = repos.agents.updateAgent('qa', {
@@ -47,6 +49,7 @@ test('updateAgent edits role and context', () => {
     weaknesses: 'infra',
     capacity: 3,
     skills: 'qa,testing',
+    channels: '#qa,#review',
   });
 
   assert.equal(updated.role, 'qa');
@@ -55,14 +58,27 @@ test('updateAgent edits role and context', () => {
   assert.equal(updated.weaknesses, 'infra');
   assert.equal(updated.capacity, 3);
   assert.equal(updated.skills, 'qa,testing');
+  assert.equal(updated.channels, '#qa,#review');
   repos.close();
 });
 
-test('listAgents returns every agent', () => {
+test('deleteAgent removes one agent and reports missing ids', () => {
+  const repos = createRepositories(':memory:');
+  repos.agents.createAgent({ id: 'qa', nick: 'qa-agent', role: 'qa', context: 'reviews work' });
+
+  assert.equal(repos.agents.deleteAgent('qa'), true);
+  assert.equal(repos.agents.findAgent('qa'), null);
+  assert.equal(repos.agents.deleteAgent('missing'), false);
+  repos.close();
+});
+
+test('listAgents returns every agent with default channels', () => {
   const repos = createRepositories(':memory:');
   repos.agents.createAgent({ id: 'a', nick: 'a', role: 'r', context: 'c' });
   repos.agents.createAgent({ id: 'b', nick: 'b', role: 'r', context: 'c' });
-  assert.equal(repos.agents.listAgents().length, 2);
+  const agents = repos.agents.listAgents();
+  assert.equal(agents.length, 2);
+  assert.deepEqual(agents.map((agent) => agent.channels), ['', '']);
   repos.close();
 });
 

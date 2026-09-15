@@ -2,6 +2,8 @@ const { createCodexRpcTransport } = require('./codex-rpc-transport');
 
 const DEVELOPER_INSTRUCTIONS = [
   'This IRC integration uses external IRC_TOOL requests for workspace actions.',
+  'You may inspect workspace directories through IRC_TOOL list_files when the orchestrator prompt advertises it.',
+  'You may read workspace files through IRC_TOOL read_file when the orchestrator prompt advertises it.',
   'You may edit files through IRC_TOOL write_file when the orchestrator prompt advertises it.',
   'You may run verification through IRC_TOOL run_verification when the prompt advertises it.',
   'Do not directly run shell commands, browse, deploy, push git, install packages, or access secrets.',

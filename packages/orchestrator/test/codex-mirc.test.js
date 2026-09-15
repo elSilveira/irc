@@ -18,6 +18,18 @@ test('mirc helper has codex shortcuts', () => {
   assert.match(script, /msg BotService HELP/);
 });
 
+test('mirc agents modal is wired to full agent CRUD', () => {
+  const script = readFileSync(join(repoRoot, 'clients/mirc/eduardoirc.mrc'), 'utf8');
+
+  assert.match(script, /alias agents /);
+  assert.match(script, /msg #control @orc agents/);
+  assert.match(script, /@orc agent create/);
+  assert.match(script, /@orc agent update/);
+  assert.match(script, /@orc agent delete/);
+  assert.match(script, /button "Delete"/);
+  assert.match(script, /on \*:TEXT:Agents:\*:#control:/);
+});
+
 test('mirc docs explain helper commands', () => {
   const readme = readFileSync(join(repoRoot, 'clients/mirc/README.md'), 'utf8');
 

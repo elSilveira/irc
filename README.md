@@ -33,6 +33,8 @@ packages/llm/                   Provider runtime and Codex bridge
 clients/mirc/                   mIRC aliases and operator usage
 docs/architecture.md            Ownership rules and migration target
 docs/status.md                  Current status and known gaps
+docs/project-overview.md        Plain-language project explanation
+docs/project-explainer.svg      Visual architecture explainer
 ```
 
 ## Runtime Ownership
@@ -44,8 +46,9 @@ BotService, mIRC tests, legacy parsing, and Codex app-server transport.
 `orchestrator`, owns task flow and ToolGateway routing, routes `@orc`, DMs, and
 managed agent traffic, and reconciles running managed agents with SQLite.
 
-BotService writes agent CRUD changes to SQLite. The orchestrator supervisor
-starts new agents or stops deleted agents after startup and after brain turns.
+BotService writes agent CRUD, model metadata, and task requests to SQLite. The
+orchestrator supervisor starts new agents or stops deleted agents after startup
+and after brain turns.
 
 ## Local Start
 
@@ -56,15 +59,16 @@ powershell -ExecutionPolicy Bypass -File .\scripts\start-helper.ps1
 npm run orchestrator:dev
 ```
 
-For a clean live test state:
+From mIRC, `/startbot` runs `scripts\restart-service.ps1`, restarting Docker,
+helper, BotService, and orchestrator. When the orchestrator comes back up, it
+rejoins configured, project, and task channels and reconciles managed agents
+from SQLite.
 
-```powershell
-node scripts/reset-control-plane-state.js data/orchestrator.sqlite
-```
-
-The reset script clears agents, tasks, task events, IRC messages, approvals,
-artifacts, and Codex conversation threads. Stop running control-plane Node
-processes first when you need a strict zero-state restart.
+For a clean live test state, run
+`node scripts/reset-control-plane-state.js data/orchestrator.sqlite`. The reset
+script clears agents, tasks, task events, IRC messages, approvals, artifacts,
+and Codex conversation threads. Stop running control-plane Node processes first
+when you need a strict zero-state restart.
 
 ## mIRC Quick Test
 
@@ -74,49 +78,44 @@ processes first when you need a strict zero-state restart.
 /join #control
 ```
 
-Useful aliases:
-
-```text
-/codex-login
-/codex-status
-/botserv-help
-/botserv-new Build local IRC control plane
-/orc-agents
-/orc-status
-/orc-tasks
-/orc-new Build local IRC control plane
-/orc-agent-create researcher-agent researcher researcher Finds missing context
-/orc-assign TASK-0001 researcher-agent
-/orc-summarize TASK-0001
-/orc-logs TASK-0001
-```
-
-Raw commands for a zero-state agent test:
-
-```text
-/msg BotService HELP
-/msg BotService AGENTS
-/msg BotService CREATE feature-implementer --nick FeatureImpl --role implementer --context "IRC feature work" --strengths irc,typescript,tests --weaknesses design --capacity 1
-/msg BotService AGENTS
-@orchestrator agents
-@orchestrator please create a task to verify agent creation from zero
-```
+Useful aliases: `/startbot`, `/codex-login`, `/codex-status`, `/botserv-help`,
+`/botserv-new Build local IRC control plane`, `/agents`, `/orc-agents`, `/orc-status`,
+`/orc-tasks`, `/orc-skills`, `/orc-new Build local IRC control plane`,
+`/orc-agent-create researcher-agent researcher researcher Finds missing context`,
+`/orc-assign TASK-0001 researcher-agent`,
+`/project connect #client-a C:\Users\duzit\source\client-a`,
+`/orc-summarize TASK-0001`, and `/orc-logs TASK-0001`.
 
 `/codex-login` asks the local `codex app-server` for a ChatGPT OAuth URL. After
 login, use `@codex <message>` in a channel. Direct messages to `helper` also
 work without `@codex`. Each channel and DM has its own persisted Codex thread.
+Managed Codex agents use scoped `IRC_TOOL` calls for `list_files`, `read_file`,
+`write_file`, and `run_verification` only when the orchestrator prompt
+advertises those tools.
 
 ## Channel-Based Project Flow
 
+Map a project channel to a workspace, bring agents into that channel, then
+create work from the project channel:
+
+```text
+@orc project connect <#channel|name> <workspace>
+@orc join <#channel> <agent|all>
+@orc agent create|update|delete <id> --nick <nick> --role <role> --context <prompt> --channels <csv>
+@orc new "Task title"
+```
+
 Use `@orc new "Title"` or `/orc-new Title` from a project channel to create a
-tracked task. The orchestrator creates the task record, opens a split task
-channel like `#task-0001`, assigns the best available managed agent, and routes
-that agent's work through the task channel.
+tracked task. The orchestrator stores the project channel and workspace on the
+task, opens a split task channel like `#task-0001`, assigns the best available
+managed agent, and routes that agent's work through the task channel.
 
 The broad project conversation can stay in `#control`, while each task channel
 keeps separate IRC history, Codex thread, lifecycle events, approval state, QA
-loop, and logs. Use `@orc logs <TASK-0001>` or `/orc-logs TASK-0001` to inspect
-channel-scoped task history.
+loop, and logs. Current task commands: `@orc tasks`, `@orc logs <TASK-0001>`,
+`@orc approvals`, `@orc approve|deny <TASK-0001>`,
+`@orc assign <TASK-0001> <agent>`, `@orc review <TASK-0001>`,
+`@orc sign <TASK-0001>`, and `@orc summarize <TASK-0001>`.
 
 ## Task Protocol
 
@@ -149,23 +148,31 @@ synchronized without manual database edits.
 /msg BotService HELP AGENTS
 /msg BotService HELP TASKS
 /msg BotService HELP SKILLS
+/msg BotService HELP MODELS
+/msg BotService HELP OPS
 /msg BotService HELP CODEX
 /msg BotService AGENTS
 /msg BotService SHOW <id>
 /msg BotService CREATE <id> --nick <nick> --role <role> --context "text"
 /msg BotService UPDATE <id> --role <role> --context <text>
 /msg BotService UPDATE <id> --strengths docs,tests --weaknesses infra --capacity 2
+/msg BotService UPDATE <id> --model <provider> --auth <login|api-key|local>
 /msg BotService DELETE <id>
 /msg BotService NEW "Task title"
 ```
 
+`HELP MODELS` documents per-agent provider/auth/model fields for Codex,
+OpenAI, Ollama, and Z.AI-style login or key modes. `HELP OPS` documents
+`BUILD`, `RESTART`, and `DEPLOY` for local service operations.
+
 ## Implemented Status
 
 Implemented: Dockerized Ergo, legacy `helper` and BotService bots, TypeScript
-orchestrator, SQLite-backed agent/task state, managed agent reconciliation,
-channel-based project flow, split task channels, ToolGateway scoped tools,
-task lifecycle protocol, automatic approval updates, heartbeats, stale-task
-recovery, QA loop, and mIRC skill/task aliases.
+orchestrator, SQLite-backed agent/task/project state, managed agent
+reconciliation, project-channel routing, split task channels, ToolGateway scoped
+tools, task lifecycle protocol, approvals, task signoff, heartbeats, stale-task
+recovery, QA loop, per-agent model metadata, BotService ops help, `/startbot`,
+and mIRC agent/skill/task aliases including `/agents` and `/orc-skills`.
 
 Not implemented yet: durable worker queue, productized artifact persistence,
 and rich skill-pack CRUD beyond current BotService guidance and static packs.

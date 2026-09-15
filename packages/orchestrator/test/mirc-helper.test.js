@@ -21,6 +21,18 @@ test('defines control-plane shortcut aliases', () => {
   }
 });
 
+test('defines startbot shortcut to restart services and managed agents', () => {
+  const script = readFileSync(scriptPath, 'utf8');
+  const readmePath = join(__dirname, '../../../clients/mirc/README.md');
+  const readme = readFileSync(readmePath, 'utf8');
+
+  assert.match(script, /alias startbot /);
+  assert.match(script, /scripts\\restart-service\.ps1/);
+  assert.match(script, /\.Start bot:\/startbot/);
+  assert.match(readme, /\/startbot/);
+  assert.match(readme, /managed agents/i);
+});
+
 test('defines skills modal dialog and interaction aliases', () => {
   const script = readFileSync(scriptPath, 'utf8');
 

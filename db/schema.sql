@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS agents (
   weaknesses TEXT NOT NULL DEFAULT '',
   capacity INTEGER NOT NULL DEFAULT 1,
   skills TEXT NOT NULL DEFAULT '',
+  channels TEXT NOT NULL DEFAULT '',
   model_provider TEXT NOT NULL DEFAULT '',
   model_auth TEXT NOT NULL DEFAULT '',
   model_name TEXT NOT NULL DEFAULT '',

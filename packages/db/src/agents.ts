@@ -24,6 +24,7 @@ export interface AgentRepository {
   findAgent(id: string): Agent | null;
   listAgents(): Agent[];
   updateAgent(id: string, fields: Partial<Omit<Agent, 'id'>>): Agent;
+  deleteAgent(id: string): boolean;
   close(): void;
 }
 
@@ -36,6 +37,7 @@ export interface AgentInput {
   weaknesses?: string;
   capacity?: number;
   skills?: string;
+  channels?: string;
   modelProvider?: string;
   modelAuth?: string;
   modelName?: string;
@@ -73,7 +75,7 @@ export function createAgentRepository(database: DatabaseSync): AgentRepository {
 
       database.prepare(`
         INSERT INTO agents (${AGENT_INSERT_COLUMNS})
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         input.id,
         input.nick,
@@ -84,6 +86,7 @@ export function createAgentRepository(database: DatabaseSync): AgentRepository {
         input.weaknesses ?? '',
         input.capacity ?? 1,
         input.skills ?? '',
+        normalizeChannels(input.channels ?? ''),
         input.modelProvider ?? '',
         input.modelAuth ?? '',
         input.modelName ?? '',
@@ -108,7 +111,7 @@ export function createAgentRepository(database: DatabaseSync): AgentRepository {
       const next = { ...current, ...stripUndefined(fields) };
       database.prepare(`
         UPDATE agents
-        SET nick = ?, role = ?, status = ?, context = ?, strengths = ?, weaknesses = ?, capacity = ?, skills = ?,
+        SET nick = ?, role = ?, status = ?, context = ?, strengths = ?, weaknesses = ?, capacity = ?, skills = ?, channels = ?,
             model_provider = ?, model_auth = ?, model_name = ?
         WHERE id = ?
       `).run(
@@ -120,6 +123,7 @@ export function createAgentRepository(database: DatabaseSync): AgentRepository {
         next.weaknesses,
         next.capacity,
         next.skills,
+        normalizeChannels(next.channels ?? ''),
         next.modelProvider ?? '',
         next.modelAuth ?? '',
         next.modelName ?? '',
@@ -129,12 +133,17 @@ export function createAgentRepository(database: DatabaseSync): AgentRepository {
       return findAgentRow(database, id) ?? throwNotFound(id);
     },
 
+    deleteAgent(id) {
+      const result = database.prepare('DELETE FROM agents WHERE id = ?').run(id);
+      return result.changes > 0;
+    },
+
     close: () => database.close(),
   };
 }
 
-const AGENT_INSERT_COLUMNS = 'id, nick, role, status, context, strengths, weaknesses, capacity, skills, model_provider, model_auth, model_name';
-const AGENT_COLUMNS = 'id, nick, role, status, context, strengths, weaknesses, capacity, skills, model_provider AS modelProvider, model_auth AS modelAuth, model_name AS modelName';
+const AGENT_INSERT_COLUMNS = 'id, nick, role, status, context, strengths, weaknesses, capacity, skills, channels, model_provider, model_auth, model_name';
+const AGENT_COLUMNS = 'id, nick, role, status, context, strengths, weaknesses, capacity, skills, channels, model_provider AS modelProvider, model_auth AS modelAuth, model_name AS modelName';
 
 function findAgentRow(database: DatabaseSync, id: string): Agent | null {
   const row = database.prepare(`SELECT ${AGENT_COLUMNS} FROM agents WHERE id = ?`).get(id) as Agent | undefined;
@@ -147,6 +156,7 @@ function ensureSchemaColumns(database: DatabaseSync): void {
   if (!agentColumns.has('weaknesses')) database.exec("ALTER TABLE agents ADD COLUMN weaknesses TEXT NOT NULL DEFAULT ''");
   if (!agentColumns.has('capacity')) database.exec('ALTER TABLE agents ADD COLUMN capacity INTEGER NOT NULL DEFAULT 1');
   if (!agentColumns.has('skills')) database.exec("ALTER TABLE agents ADD COLUMN skills TEXT NOT NULL DEFAULT ''");
+  if (!agentColumns.has('channels')) database.exec("ALTER TABLE agents ADD COLUMN channels TEXT NOT NULL DEFAULT ''");
   if (!agentColumns.has('model_provider')) database.exec("ALTER TABLE agents ADD COLUMN model_provider TEXT NOT NULL DEFAULT ''");
   if (!agentColumns.has('model_auth')) database.exec("ALTER TABLE agents ADD COLUMN model_auth TEXT NOT NULL DEFAULT ''");
   if (!agentColumns.has('model_name')) database.exec("ALTER TABLE agents ADD COLUMN model_name TEXT NOT NULL DEFAULT ''");
@@ -154,6 +164,10 @@ function ensureSchemaColumns(database: DatabaseSync): void {
   const taskColumns = columnNames(database, 'tasks');
   if (!taskColumns.has('project_channel')) database.exec('ALTER TABLE tasks ADD COLUMN project_channel TEXT');
   if (!taskColumns.has('workspace')) database.exec('ALTER TABLE tasks ADD COLUMN workspace TEXT');
+}
+
+function normalizeChannels(value: string): string {
+  return value.split(',').map((channel) => channel.trim()).filter(Boolean).join(',');
 }
 
 function columnNames(database: DatabaseSync, table: string): Set<string> {

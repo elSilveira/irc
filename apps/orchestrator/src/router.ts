@@ -29,6 +29,7 @@ export interface ManagedAgentDirectInput {
 const DETERMINISTIC_COMMANDS = new Set([
   'help',
   'agents',
+  'agent',
   'status',
   'tasks',
   'new',
@@ -80,7 +81,7 @@ function routePrefixedCommand(input: RouteInput, replyTarget: string, rest: stri
   if (DETERMINISTIC_COMMANDS.has(commandName)) {
     return { kind: 'command', sender: input.sender, target: input.target, replyTarget, text: input.text, command: { name: commandName, args } };
   }
-  if (allowChatFallback) return { kind: 'chat', sender: input.sender, target: input.target, replyTarget, text: input.text, prompt: rest };
+  if (allowChatFallback) return { kind: 'chat', sender: input.sender, target: input.target, text: input.text, replyTarget, prompt: rest };
   return ignore(input);
 }
 

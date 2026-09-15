@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { listAgentSkillPacks, inferAgentSkills, listAgentSkills } from './agent-skills.js';
+import { listAgentSkillPacks, inferAgentSkills, listAgentSkills, normalizeAgentSkills, validateAgentSkills } from './agent-skills.js';
 
 test('lists available agent skill packs', () => {
   const skills = listAgentSkillPacks();
@@ -17,6 +17,15 @@ test('lists every agent skill with editable display metadata', () => {
     assert.match(skill.title, /\S/);
     assert.match(skill.description, /\S/);
   }
+});
+
+test('normalizes comma and semicolon separated agent skills', () => {
+  assert.equal(normalizeAgentSkills(' QA, testing ; Review,qa '), 'qa,testing,review');
+});
+
+test('validates selected skills against the catalog', () => {
+  assert.deepEqual(validateAgentSkills('qa,unknown;testing'), ['unknown']);
+  assert.deepEqual(validateAgentSkills('qa,testing,review'), []);
 });
 
 test('infers a matching default skill pack from role and context', () => {

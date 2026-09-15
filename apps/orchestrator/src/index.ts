@@ -47,6 +47,7 @@ export async function startOrchestrator(): Promise<IrcClient> {
     configured: config.channels,
     projects: repos.projects.listProjects(),
     tasks: repos.tasks.listTasks(),
+    agents: repos.agents.listAgents(),
   });
   const startup = supervisor.reconcile(repos.agents.listAgents().map(toSummary), startupChannels);
 
@@ -158,8 +159,8 @@ function chunkLines(text: string, size: number): string[] {
   return chunks;
 }
 
-function toSummary(agent: { id: string; nick: string; role: string; context: string; skills?: string }): AgentSummary {
-  return { id: agent.id, nick: agent.nick, role: agent.role, context: agent.context, skills: agent.skills };
+function toSummary(agent: { id: string; nick: string; role: string; context: string; skills?: string; channels?: string }): AgentSummary {
+  return { id: agent.id, nick: agent.nick, role: agent.role, context: agent.context, skills: agent.skills, channels: agent.channels };
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {

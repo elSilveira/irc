@@ -63,6 +63,15 @@ export function listAgentSkillPacks(): string[] {
   return AGENT_SKILL_PACKS.map((pack) => pack.id);
 }
 
+export function normalizeAgentSkills(value?: string): string {
+  return normalizeSkills(value).join(',');
+}
+
+export function validateAgentSkills(value?: string): string[] {
+  const known = new Set(AGENT_SKILLS.map((skill) => skill.id));
+  return normalizeSkills(value).filter((skill) => !known.has(skill));
+}
+
 export function inferAgentSkills(input: { role: string; context: string }): string {
   return findSkillPack(input)?.skills ?? 'research,docs,context';
 }
@@ -104,7 +113,15 @@ function skillSet(input: { role: string; context: string; skills?: string }): Se
 }
 
 function normalizeSkills(value?: string): string[] {
-  return (value ?? '').toLowerCase().split(',').map((part) => part.trim()).filter(Boolean);
+  const seen = new Set<string>();
+  const normalized: string[] = [];
+  for (const part of (value ?? '').toLowerCase().split(/[;,]/).map((item) => item.trim()).filter(Boolean)) {
+    if (!seen.has(part)) {
+      seen.add(part);
+      normalized.push(part);
+    }
+  }
+  return normalized;
 }
 
 function hasAny(values: Set<string>, expected: string[]): boolean {

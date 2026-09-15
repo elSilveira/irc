@@ -9,6 +9,7 @@ export interface AgentSummary {
   role: string;
   context: string;
   skills?: string;
+  channels?: string;
 }
 
 export interface AgentHandle {
@@ -63,11 +64,12 @@ export class AgentSupervisor {
     if (this.bots.has(key)) return this.bots.get(key)!;
     if (this.reserved.has(key)) return null;
 
+    const botChannels = dedupe([...channels, ...parseChannels(agent.channels ?? ''), '#agents']);
     const bot = this.createBot({
       host: this.deps.host,
       port: this.deps.port,
       agent,
-      channels: dedupe([...channels, '#agents']),
+      channels: botChannels,
       greetChannel,
       codex: this.deps.codex,
       conversations: this.deps.conversations,
@@ -138,6 +140,10 @@ export class AgentSupervisor {
 
     return { started, stopped, unchanged };
   }
+}
+
+function parseChannels(value: string): string[] {
+  return value.split(',').map((channel) => channel.trim()).filter(Boolean);
 }
 
 function dedupe(values: string[]): string[] {

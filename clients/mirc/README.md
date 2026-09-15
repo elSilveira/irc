@@ -67,6 +67,16 @@ Codex owns login, tokens, model access, and streamed responses:
 powershell -ExecutionPolicy Bypass -File .\scripts\start-helper.ps1
 ```
 
+From mIRC, use `/startbot` to run the full restart path:
+
+```text
+/startbot
+```
+
+This launches `scripts\restart-service.ps1`, which restarts the local services
+and the orchestrator. After the orchestrator starts, it reconciles the persisted
+managed agents so they return to IRC.
+
 Then use these mIRC shortcuts in `#control`:
 
 ```text
@@ -109,6 +119,7 @@ All control-plane aliases send `@orc` commands to `#control`.
 
 ```text
 /orc-agents
+/agents
 /orc-status
 /orc-tasks
 /orc-new Build local IRC control plane
@@ -121,6 +132,11 @@ All control-plane aliases send `@orc` commands to `#control`.
 
 `/orc-new` sends `@orc new`, creates a task such as `TASK-0001`, and makes the
 bot join the split channel `#task-0001` for that task context.
+
+`/agents` opens the EduardoIRC Agents modal. Opening or refreshing it clears the
+list and asks `#control` for `@orc agents`; the modal loads the live `Agents:`
+reply so you can create, update, or delete agent configs, including channel
+membership.
 
 `/orc-agent-create` stores agent identity and context through the orchestrator:
 

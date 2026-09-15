@@ -49,7 +49,10 @@ test('thread instructions allow scoped external IRC tools', async () => {
   await generated;
 
   const threadStart = transport.calls.find((call) => call.method === 'thread/start');
-  assert.match(threadStart.params.developerInstructions, /IRC_TOOL/);
+  assert.match(threadStart.params.developerInstructions, /IRC_TOOL list_files/);
+  assert.match(threadStart.params.developerInstructions, /IRC_TOOL read_file/);
+  assert.match(threadStart.params.developerInstructions, /IRC_TOOL write_file/);
+  assert.match(threadStart.params.developerInstructions, /IRC_TOOL run_verification/);
   assert.doesNotMatch(threadStart.params.developerInstructions, /chat-only and read-only/);
   assert.doesNotMatch(threadStart.params.developerInstructions, /read-only session/i);
   assert.notEqual(threadStart.params.sandbox, 'read-only');

@@ -1,0 +1,194 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1100" viewBox="0 0 1600 1100" role="img" aria-labelledby="title desc">
+  <title id="title">EduardoIRC project explainer</title>
+  <desc id="desc">Architecture and task lifecycle diagram for the EduardoIRC IRC-native multi-agent control plane.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f7f9fb"/>
+      <stop offset="1" stop-color="#edf4f0"/>
+    </linearGradient>
+    <linearGradient id="header" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#18324a"/>
+      <stop offset="1" stop-color="#1f6f78"/>
+    </linearGradient>
+    <marker id="arrow" markerWidth="14" markerHeight="14" refX="11" refY="7" orient="auto" markerUnits="strokeWidth">
+      <path d="M2,2 L12,7 L2,12 Z" fill="#3b4a5a"/>
+    </marker>
+    <marker id="arrowAccent" markerWidth="14" markerHeight="14" refX="11" refY="7" orient="auto" markerUnits="strokeWidth">
+      <path d="M2,2 L12,7 L2,12 Z" fill="#227a72"/>
+    </marker>
+    <filter id="softShadow" x="-10%" y="-10%" width="120%" height="125%">
+      <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#203040" flood-opacity="0.14"/>
+    </filter>
+    <style>
+      .page { fill: url(#bg); }
+      .header { fill: url(#header); }
+      .title { font: 700 46px Arial, Helvetica, sans-serif; fill: #ffffff; }
+      .subtitle { font: 400 21px Arial, Helvetica, sans-serif; fill: #dceef1; }
+      .section-title { font: 700 21px Arial, Helvetica, sans-serif; fill: #203040; }
+      .section-subtitle { font: 400 15px Arial, Helvetica, sans-serif; fill: #637180; }
+      .band { fill: rgba(255,255,255,0.68); stroke: #d7e0e8; stroke-width: 1.5; }
+      .card { fill: #ffffff; stroke: #ced9e2; stroke-width: 1.5; filter: url(#softShadow); }
+      .card-alt { fill: #fbfcfd; stroke: #ced9e2; stroke-width: 1.5; filter: url(#softShadow); }
+      .card-title { font: 700 20px Arial, Helvetica, sans-serif; fill: #1e2f42; }
+      .card-text { font: 400 15px Arial, Helvetica, sans-serif; fill: #4c5d6e; }
+      .small { font: 400 13px Arial, Helvetica, sans-serif; fill: #5d6b78; }
+      .mono { font: 700 15px Consolas, 'Courier New', monospace; fill: #24645f; }
+      .pill { fill: #e9f5f3; stroke: #9ccdc7; stroke-width: 1; }
+      .pill-text { font: 700 13px Arial, Helvetica, sans-serif; fill: #24645f; }
+      .legacy { fill: #fff7e6; stroke: #efc76d; stroke-width: 1; }
+      .legacy-text { font: 700 13px Arial, Helvetica, sans-serif; fill: #7b5b16; }
+      .gap { fill: #fff2f2; stroke: #e9a5a5; stroke-width: 1; }
+      .gap-text { font: 700 13px Arial, Helvetica, sans-serif; fill: #884044; }
+      .arrow { stroke: #3b4a5a; stroke-width: 3; fill: none; marker-end: url(#arrow); }
+      .arrow-soft { stroke: #718092; stroke-width: 2.2; fill: none; marker-end: url(#arrow); stroke-dasharray: 7 7; }
+      .arrow-accent { stroke: #227a72; stroke-width: 3.3; fill: none; marker-end: url(#arrowAccent); }
+      .flow-line { stroke: #227a72; stroke-width: 4; fill: none; marker-end: url(#arrowAccent); }
+      .flow-node { fill: #ffffff; stroke: #67b7ae; stroke-width: 2; filter: url(#softShadow); }
+      .flow-num { font: 700 17px Arial, Helvetica, sans-serif; fill: #ffffff; }
+      .flow-num-bg { fill: #227a72; }
+      .flow-title { font: 700 16px Arial, Helvetica, sans-serif; fill: #1e2f42; }
+      .flow-text { font: 400 13px Arial, Helvetica, sans-serif; fill: #546271; }
+      .label { font: 700 13px Arial, Helvetica, sans-serif; fill: #445365; }
+    </style>
+  </defs>
+  <rect class="page" width="1600" height="1100"/>
+  <rect class="header" x="0" y="0" width="1600" height="150"/>
+  <text class="title" x="70" y="72">EduardoIRC</text>
+  <text class="subtitle" x="70" y="112">IRC-native multi-agent control plane for creating, routing, monitoring, and validating software work.</text>
+  <rect x="1195" y="38" width="330" height="72" rx="8" fill="#ffffff" opacity="0.14"/>
+  <text x="1222" y="70" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700" fill="#ffffff">Public IRC</text>
+  <text x="1222" y="98" font-family="Consolas, 'Courier New', monospace" font-size="17" font-weight="700" fill="#dceef1">irc.eduardosilveira.dev:6697</text>
+  <rect class="band" x="50" y="180" width="1500" height="190" rx="8"/>
+  <text class="section-title" x="75" y="217">1. IRC Surface</text>
+  <text class="section-subtitle" x="75" y="244">Humans and clients interact through IRC channels, DMs, aliases, and command facades.</text>
+  <rect class="card" x="95" y="270" width="260" height="74" rx="8"/>
+  <text class="card-title" x="119" y="299">Human operator</text>
+  <text class="card-text" x="119" y="324">Creates work from IRC</text>
+  <rect class="card" x="415" y="250" width="290" height="94" rx="8"/>
+  <text class="card-title" x="439" y="280">mIRC shortcuts</text>
+  <text class="mono" x="439" y="306">/orc-new</text>
+  <text class="card-text" x="527" y="306">tasks, aliases, skills modal</text>
+  <text class="small" x="439" y="329">clients/mirc/eduardoirc.mrc</text>
+  <rect class="card" x="765" y="250" width="280" height="94" rx="8"/>
+  <text class="card-title" x="789" y="280">Ergo IRCd</text>
+  <text class="card-text" x="789" y="306">Dockerized IRC network</text>
+  <text class="small" x="789" y="329">TLS public access, local 6667 dev</text>
+  <rect class="card-alt" x="1105" y="250" width="345" height="94" rx="8"/>
+  <text class="card-title" x="1129" y="280">Command channels</text>
+  <text class="mono" x="1129" y="306">#control  #agents  #logs</text>
+  <text class="small" x="1129" y="329">Task channels split as #task-0001</text>
+  <path class="arrow" d="M355 307 H408"/>
+  <path class="arrow" d="M705 297 H758"/>
+  <path class="arrow" d="M1045 297 H1098"/>
+  <rect class="band" x="50" y="400" width="1500" height="300" rx="8"/>
+  <text class="section-title" x="75" y="437">2. Orchestration Runtime</text>
+  <text class="section-subtitle" x="75" y="464">Legacy compatibility bots stay stable while the TypeScript orchestrator owns task flow and managed agents.</text>
+  <rect class="card-alt" x="95" y="500" width="310" height="142" rx="8"/>
+  <text class="card-title" x="119" y="532">Legacy control plane</text>
+  <rect class="legacy" x="119" y="549" width="75" height="24" rx="12"/>
+  <text class="legacy-text" x="138" y="566">legacy</text>
+  <text class="card-text" x="119" y="595">helper: Codex chat bridge</text>
+  <text class="card-text" x="119" y="620">BotService: help, agents, tasks</text>
+  <text class="small" x="119" y="644">packages/orchestrator</text>
+  <rect class="card" x="485" y="482" width="360" height="178" rx="8"/>
+  <text class="card-title" x="509" y="514">TypeScript orchestrator</text>
+  <text class="card-text" x="509" y="542">Connects as orchestrator</text>
+  <text class="card-text" x="509" y="567">Routes @orc, DMs, and agent traffic</text>
+  <text class="card-text" x="509" y="592">Creates tasks and split channels</text>
+  <text class="card-text" x="509" y="617">Ingests structured task events</text>
+  <text class="small" x="509" y="642">apps/orchestrator</text>
+  <rect class="card" x="925" y="482" width="285" height="178" rx="8"/>
+  <text class="card-title" x="949" y="514">Supervisor</text>
+  <text class="card-text" x="949" y="542">Reconciles DB agents</text>
+  <text class="card-text" x="949" y="567">Starts new bots</text>
+  <text class="card-text" x="949" y="592">Stops deleted bots</text>
+  <text class="card-text" x="949" y="617">Keeps runtime aligned</text>
+  <rect class="card" x="1280" y="482" width="210" height="178" rx="8"/>
+  <text class="card-title" x="1304" y="514">Managed agents</text>
+  <text class="card-text" x="1304" y="542">Role-based IRC bots</text>
+  <text class="card-text" x="1304" y="567">Implementers</text>
+  <text class="card-text" x="1304" y="592">Researchers</text>
+  <text class="card-text" x="1304" y="617">QA agents</text>
+  <path class="arrow" d="M405 571 H478"/>
+  <path class="arrow-accent" d="M845 571 H918"/>
+  <path class="arrow-accent" d="M1210 571 H1273"/>
+  <path class="arrow-soft" d="M1385 482 C1385 408 1185 394 1048 374"/>
+  <text class="label" x="1220" y="414">agents join task channels</text>
+  <rect class="band" x="50" y="730" width="1500" height="170" rx="8"/>
+  <text class="section-title" x="75" y="767">3. Shared Data, Tools, And Brains</text>
+  <text class="section-subtitle" x="75" y="794">State, permissions, providers, and durable context sit behind the IRC workflow.</text>
+  <rect class="card" x="95" y="815" width="310" height="58" rx="8"/>
+  <text class="card-title" x="119" y="849">SQLite repositories</text>
+  <text class="small" x="119" y="868">agents, tasks, events, messages, approvals</text>
+  <rect class="card" x="455" y="815" width="295" height="58" rx="8"/>
+  <text class="card-title" x="479" y="849">ToolGateway</text>
+  <text class="small" x="479" y="868">file, git, verification, agent tools</text>
+  <rect class="card" x="800" y="815" width="300" height="58" rx="8"/>
+  <text class="card-title" x="824" y="849">LLM provider runtime</text>
+  <text class="small" x="824" y="868">Codex, OpenAI, Ollama fallback chain</text>
+  <rect class="card-alt" x="1150" y="815" width="300" height="58" rx="8"/>
+  <text class="card-title" x="1174" y="849">Shared packages</text>
+  <text class="small" x="1174" y="868">ids, permissions, task protocol, types</text>
+  <path class="arrow-accent" d="M665 660 C665 707 250 707 250 808"/>
+  <path class="arrow-accent" d="M665 660 C665 715 600 722 600 808"/>
+  <path class="arrow-accent" d="M665 660 C665 715 950 722 950 808"/>
+  <path class="arrow-soft" d="M925 571 C802 590 732 700 600 808"/>
+  <path class="arrow-soft" d="M1280 610 C1138 655 1038 735 950 808"/>
+  <rect x="50" y="930" width="1500" height="125" rx="8" fill="#e9f5f3" stroke="#b9d8d4" stroke-width="1.5"/>
+  <text class="section-title" x="75" y="966">Task Lifecycle</text>
+  <path class="flow-line" d="M147 1006 H1408"/>
+  <g transform="translate(95 984)">
+    <rect class="flow-node" x="0" y="0" width="150" height="58" rx="8"/>
+    <circle class="flow-num-bg" cx="24" cy="24" r="17"/>
+    <text class="flow-num" x="19" y="30">1</text>
+    <text class="flow-title" x="52" y="23">Create</text>
+    <text class="flow-text" x="52" y="43">@orc new</text>
+  </g>
+  <g transform="translate(285 984)">
+    <rect class="flow-node" x="0" y="0" width="150" height="58" rx="8"/>
+    <circle class="flow-num-bg" cx="24" cy="24" r="17"/>
+    <text class="flow-num" x="19" y="30">2</text>
+    <text class="flow-title" x="52" y="23">Split</text>
+    <text class="flow-text" x="52" y="43">#task-0001</text>
+  </g>
+  <g transform="translate(475 984)">
+    <rect class="flow-node" x="0" y="0" width="150" height="58" rx="8"/>
+    <circle class="flow-num-bg" cx="24" cy="24" r="17"/>
+    <text class="flow-num" x="19" y="30">3</text>
+    <text class="flow-title" x="52" y="23">Route</text>
+    <text class="flow-text" x="52" y="43">best agent</text>
+  </g>
+  <g transform="translate(665 984)">
+    <rect class="flow-node" x="0" y="0" width="150" height="58" rx="8"/>
+    <circle class="flow-num-bg" cx="24" cy="24" r="17"/>
+    <text class="flow-num" x="19" y="30">4</text>
+    <text class="flow-title" x="52" y="23">Work</text>
+    <text class="flow-text" x="52" y="43">ack, wip, htb</text>
+  </g>
+  <g transform="translate(855 984)">
+    <rect class="flow-node" x="0" y="0" width="150" height="58" rx="8"/>
+    <circle class="flow-num-bg" cx="24" cy="24" r="17"/>
+    <text class="flow-num" x="19" y="30">5</text>
+    <text class="flow-title" x="52" y="23">Result</text>
+    <text class="flow-text" x="52" y="43">result, rdt</text>
+  </g>
+  <g transform="translate(1045 984)">
+    <rect class="flow-node" x="0" y="0" width="150" height="58" rx="8"/>
+    <circle class="flow-num-bg" cx="24" cy="24" r="17"/>
+    <text class="flow-num" x="19" y="30">6</text>
+    <text class="flow-title" x="52" y="23">QA</text>
+    <text class="flow-text" x="52" y="43">test feedback</text>
+  </g>
+  <g transform="translate(1235 984)">
+    <rect class="flow-node" x="0" y="0" width="150" height="58" rx="8"/>
+    <circle class="flow-num-bg" cx="24" cy="24" r="17"/>
+    <text class="flow-num" x="19" y="30">7</text>
+    <text class="flow-title" x="52" y="23">Finish</text>
+    <text class="flow-text" x="52" y="43">pass or loop</text>
+  </g>
+  <rect class="gap" x="1398" y="984" width="112" height="58" rx="8"/>
+  <text class="gap-text" x="1419" y="1008">Next gaps</text>
+  <text class="small" x="1415" y="1029">queue, artifacts</text>
+  <rect class="pill" x="1260" y="690" width="230" height="30" rx="15"/>
+  <text class="pill-text" x="1281" y="710">current target: migrate legacy into TS</text>
+</svg>

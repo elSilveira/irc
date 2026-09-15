@@ -8,6 +8,7 @@ export interface Agent {
   weaknesses: string;
   capacity: number;
   skills: string;
+  channels: string;
   modelProvider?: string;
   modelAuth?: string;
   modelName?: string;

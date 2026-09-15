@@ -29,3 +29,18 @@ test('documents orchestrator app and package split', () => {
     assert.match(doc, /helper/);
   }
 });
+
+test('documents current operator workflows', () => {
+  const readme = readFileSync(join(__dirname, '../../../README.md'), 'utf8');
+
+  assert.match(readme, /\/startbot/);
+  assert.match(readme, /@orc project connect/);
+  assert.match(readme, /@orc join <#channel> <agent\|all>/);
+  assert.match(readme, /@orc approve\|deny <TASK-0001>/);
+  assert.match(readme, /\/orc-skills/);
+  assert.match(readme, /HELP MODELS/);
+  assert.match(readme, /HELP OPS/);
+  assert.match(readme, /\/agents/);
+  assert.match(readme, /@orc agent create\|update\|delete/);
+  assert.match(readme, /--channels <csv>/);
+});

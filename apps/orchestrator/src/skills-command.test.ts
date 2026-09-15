@@ -31,3 +31,23 @@ test('skills command lists every available skill with a description', () => {
     assert.match(reply, new RegExp(`${skill}:\\s+\\S`));
   }
 });
+
+test('skills command updates one agent with normalized catalog skills', () => {
+  const c = setup();
+  c.services.repos.agents.createAgent({ id: 'qa', nick: 'QaBot', role: 'qa', context: 'Reviews work' });
+
+  handleCommand({ name: 'skills', args: ['qa', 'QA; testing,Review'] }, c.services);
+
+  assert.equal(c.services.repos.agents.findAgent('qa')?.skills, 'qa,testing,review');
+  assert.equal(c.sent.at(-1)?.text, 'Agent qa skills updated: qa,testing,review');
+});
+
+test('skills command rejects unknown skill ids', () => {
+  const c = setup();
+  c.services.repos.agents.createAgent({ id: 'qa', nick: 'QaBot', role: 'qa', context: 'Reviews work', skills: 'qa' });
+
+  handleCommand({ name: 'skills', args: ['qa', 'qa,unknown'] }, c.services);
+
+  assert.equal(c.services.repos.agents.findAgent('qa')?.skills, 'qa');
+  assert.match(c.sent.at(-1)?.text ?? '', /Unknown skills: unknown/);
+});
