@@ -58,6 +58,16 @@ test('skills modal allows editing skill and adding detail to task request', () =
   assert.match(script, /if \(%detail\) \{ msg #control @orc new \$qt\(%skill \$\+ : %request %detail\) \}/);
 });
 
+test('agents modal refresh requests orchestrator and BotService agent lists', () => {
+  const script = readFileSync(scriptPath, 'utf8');
+
+  assert.match(script, /alias agents .*msg #control @orc agents \| msg BotService AGENTS/);
+  assert.match(script, /on \*:dialog:eduardoirc_agents:init:0:.*msg #control @orc agents \| msg BotService AGENTS/);
+  assert.match(script, /if \(\$did == 42\).*msg #control @orc agents \| msg BotService AGENTS/);
+  assert.match(script, /on \*:TEXT:Agents:\*:\?:/);
+  assert.match(script, /\$nick != BotService/);
+});
+
 test('documents agent context argument in mIRC helper', () => {
   const readmePath = join(__dirname, '../../../clients/mirc/README.md');
   const readme = readFileSync(readmePath, 'utf8');

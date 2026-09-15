@@ -72,3 +72,49 @@ test('chooseAgentForTask avoids weakness matches when possible', () => {
 
   assert.equal(result?.agent.id, 'infra');
 });
+
+test('chooseAgentForTask does not treat implementation handoff context as planner identity', () => {
+  const result = chooseAgentForTask({
+    title: 'Fix modal connection',
+    agents: [
+      {
+        ...baseAgent,
+        id: 'feature-implementer',
+        role: 'implementation',
+        context: 'Use after plan has produced an actionable spec.',
+      },
+      { ...baseAgent, id: 'plan', role: 'planning', context: 'Creates plans before implementation.' },
+    ],
+    tasks: [],
+  });
+
+  assert.equal(result?.agent.id, 'plan');
+});
+
+test('chooseAgentForTask prefers dedicated planner over secondary planning skills', () => {
+  const result = chooseAgentForTask({
+    title: 'Fix agent routing',
+    agents: [
+      { ...baseAgent, id: 'git', role: 'repository maintenance', skills: 'ops,planning,routing' },
+      { ...baseAgent, id: 'investment_advisor', role: 'portfolio planning agent' },
+      { ...baseAgent, id: 'plan', role: 'planning', skills: 'orchestration,planning,routing' },
+    ],
+    tasks: [],
+  });
+
+  assert.equal(result?.agent.id, 'plan');
+});
+
+test('chooseAgentForTask honors the first explicit agent flow mention', () => {
+  const result = chooseAgentForTask({
+    title: 'Ask @testing to validate, then @plan before feature work',
+    agents: [
+      { ...baseAgent, id: 'feature-implementer', role: 'implementation' },
+      { ...baseAgent, id: 'plan', role: 'planning' },
+      { ...baseAgent, id: 'tester', nick: 'Tester', role: 'Tester', skills: 'qa,testing,review' },
+    ],
+    tasks: [],
+  });
+
+  assert.equal(result?.agent.id, 'tester');
+});

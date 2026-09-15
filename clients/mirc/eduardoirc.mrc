@@ -30,7 +30,7 @@ alias project { if (!$1) { echo -a Usage: /project connect <#channel> <workspace
 alias orc-agent-create { if (!$4) { echo -a Usage: /orc-agent-create <id> <nick> <role> <context> | return } | msg #control @orc agent create $1 --nick $2 --role $3 --context $qt($4-) }
 alias skills { if (!$dialog(eduardoirc_skills)) { dialog -m eduardoirc_skills eduardoirc_skills } | else { dialog -v eduardoirc_skills } }
 alias orc-skills { skills }
-alias agents { set %eduardoirc_agents_loading 1 | if (!$dialog(eduardoirc_agents)) { dialog -m eduardoirc_agents eduardoirc_agents } | else { dialog -v eduardoirc_agents | did -r eduardoirc_agents 10 | msg #control @orc agents } }
+alias agents { set %eduardoirc_agents_loading 1 | if (!$dialog(eduardoirc_agents)) { dialog -m eduardoirc_agents eduardoirc_agents } | else { dialog -v eduardoirc_agents | did -r eduardoirc_agents 10 | msg #control @orc agents | msg BotService AGENTS } }
 
 dialog eduardoirc_skills {
   title "EduardoIRC Skills"
@@ -106,11 +106,11 @@ dialog eduardoirc_agents {
   list 60, 294 31 80 126, size hsbar
   button "Add skill", 61, 294 164 38 14
   button "Clear skills", 62, 336 164 38 14
-  text "Refresh loads current configs from @orc. Select a line, edit fields, then create, update, or delete.", 50, 8 210 366 16
+  text "Refresh loads current configs from @orc and BotService. Select a line, edit fields, then create, update, or delete.", 50, 8 210 366 16
   button "Close", 2, 330 230 52 16, ok
 }
 
-on *:dialog:eduardoirc_agents:init:0:{ did -r eduardoirc_agents 10 | did -r eduardoirc_agents 60 | did -a eduardoirc_agents 60 implementation: Builds scoped features and fixes with focused production edits. | did -a eduardoirc_agents 60 tdd: Adds or updates tests before implementation changes. | did -a eduardoirc_agents 60 repo-editing: Reads, writes, and keeps code changes limited to the assigned repo task. | did -a eduardoirc_agents 60 qa: Validates completed work against the requested behavior. | did -a eduardoirc_agents 60 testing: Runs targeted checks and reports actionable failures. | did -a eduardoirc_agents 60 review: Reviews code for regressions, risks, and missing coverage. | did -a eduardoirc_agents 60 orchestration: Coordinates agents, task state, and handoffs. | did -a eduardoirc_agents 60 planning: Breaks requested work into concrete execution steps. | did -a eduardoirc_agents 60 routing: Selects the right agent or channel for incoming work. | did -a eduardoirc_agents 60 research: Finds project context and supporting references before changes. | did -a eduardoirc_agents 60 docs: Updates written project guidance and user-facing docs. | did -a eduardoirc_agents 60 context: Collects and preserves relevant task, repo, and conversation context. | did -a eduardoirc_agents 60 ops: Handles runtime, deployment, and service operation tasks. | did -a eduardoirc_agents 60 logs: Inspects logs and traces to diagnose current behavior. | did -a eduardoirc_agents 60 diagnostics: Investigates failures and narrows them to likely causes. | set %eduardoirc_agents_loading 1 | msg #control @orc agents }
+on *:dialog:eduardoirc_agents:init:0:{ did -r eduardoirc_agents 10 | did -r eduardoirc_agents 60 | did -a eduardoirc_agents 60 implementation: Builds scoped features and fixes with focused production edits. | did -a eduardoirc_agents 60 tdd: Adds or updates tests before implementation changes. | did -a eduardoirc_agents 60 repo-editing: Reads, writes, and keeps code changes limited to the assigned repo task. | did -a eduardoirc_agents 60 qa: Validates completed work against the requested behavior. | did -a eduardoirc_agents 60 testing: Runs targeted checks and reports actionable failures. | did -a eduardoirc_agents 60 review: Reviews code for regressions, risks, and missing coverage. | did -a eduardoirc_agents 60 orchestration: Coordinates agents, task state, and handoffs. | did -a eduardoirc_agents 60 planning: Breaks requested work into concrete execution steps. | did -a eduardoirc_agents 60 routing: Selects the right agent or channel for incoming work. | did -a eduardoirc_agents 60 research: Finds project context and supporting references before changes. | did -a eduardoirc_agents 60 docs: Updates written project guidance and user-facing docs. | did -a eduardoirc_agents 60 context: Collects and preserves relevant task, repo, and conversation context. | did -a eduardoirc_agents 60 ops: Handles runtime, deployment, and service operation tasks. | did -a eduardoirc_agents 60 logs: Inspects logs and traces to diagnose current behavior. | did -a eduardoirc_agents 60 diagnostics: Investigates failures and narrows them to likely causes. | set %eduardoirc_agents_loading 1 | msg #control @orc agents | msg BotService AGENTS }
 
 on *:TEXT:Agents:*:#control:{
   if (!$dialog(eduardoirc_agents)) { return }
@@ -119,6 +119,15 @@ on *:TEXT:Agents:*:#control:{
   var %payload = $mid($1-,9)
   var %i = 1
   while ($gettok(%payload,%i,124)) { var %row = $v1 | did -a eduardoirc_agents 10 %row | inc %i }
+}
+
+on *:TEXT:Agents:*:?:{
+  if (!$dialog(eduardoirc_agents)) { return }
+  if ($nick != BotService) { return }
+  set %eduardoirc_agents_loading 1
+  var %payload = $mid($1-,8)
+  var %i = 1
+  while ($gettok(%payload,%i,124)) { var %row = $v1 | if (%row != helper) { did -a eduardoirc_agents 10 %row | inc %i } | else inc %i }
 }
 
 on *:TEXT:*:#control:{
@@ -135,7 +144,7 @@ on *:dialog:eduardoirc_agents:sclick:*:{
   if ($did == 10) { var %line = $did(eduardoirc_agents,10).seltext | if (%line) { did -ra eduardoirc_agents 22 $gettok(%line,1,32) | did -ra eduardoirc_agents 24 $remove($gettok($matchtok(%line,nick=*,1,32),2,61),$chr(34)) | did -ra eduardoirc_agents 27 $remove($gettok($matchtok(%line,role=*,1,32),2,61),$chr(34)) | did -ra eduardoirc_agents 25 $remove($gettok($matchtok(%line,channels=*,1,32),2,61),$chr(34),$chr(40),$chr(41),none) | did -ra eduardoirc_agents 29 $remove($gettok($matchtok(%line,skills=*,1,32),2,61),$chr(34),$chr(40),$chr(41),none) | if ($regex(agentctx,%line,/context="([^"]*)"/)) { did -ra eduardoirc_agents 31 $regml(agentctx,1) } } }
   if ($did == 40) { var %id = $did(eduardoirc_agents,22).text | var %nick = $did(eduardoirc_agents,24).text | var %role = $did(eduardoirc_agents,27).text | var %channels = $did(eduardoirc_agents,25).text | var %skills = $did(eduardoirc_agents,29).text | var %context = $did(eduardoirc_agents,31).text | if (!%id || !%nick || !%role || !%context) { echo -a Fill id, nick, role, and prompt before creating. | return } | msg #control @orc agent create %id --nick %nick --role %role --context $qt(%context) --skills %skills --channels %channels }
   if ($did == 41) { var %id = $did(eduardoirc_agents,22).text | var %nick = $did(eduardoirc_agents,24).text | var %role = $did(eduardoirc_agents,27).text | var %channels = $did(eduardoirc_agents,25).text | var %skills = $did(eduardoirc_agents,29).text | var %context = $did(eduardoirc_agents,31).text | if (!%id || !%context) { echo -a Select an agent and keep prompt populated before updating. | return } | msg #control @orc agent update %id --nick %nick --role %role --context $qt(%context) --skills %skills --channels %channels }
-  if ($did == 42) { did -r eduardoirc_agents 10 | set %eduardoirc_agents_loading 1 | msg #control @orc agents }
+  if ($did == 42) { did -r eduardoirc_agents 10 | set %eduardoirc_agents_loading 1 | msg #control @orc agents | msg BotService AGENTS }
   if ($did == 43) { var %id = $did(eduardoirc_agents,22).text | if (!%id) { echo -a Select an agent before deleting. | return } | msg #control @orc agent delete %id | did -r eduardoirc_agents 10 }
   if ($did == 61) { var %skill = $gettok($did(eduardoirc_agents,60).seltext,1,58) | var %skills = $did(eduardoirc_agents,29).text | if (!%skill) { echo -a Select a skill first. | return } | did -ra eduardoirc_agents 29 $addtok(%skills,%skill,44) }
   if ($did == 62) { did -r eduardoirc_agents 29 }
